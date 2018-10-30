@@ -22,14 +22,29 @@ class Images:
         self.dust_this_frame={"xpositions":[],"ypositions":[],"widths":[], "lengths":[],"pixels":[],"name":"undefined"}
         self.dust_every_frame=len(self.images)*[0]
         
-    def find_bg(self):
-        """Function that returns the average of all the images"""
-        try:
-            for image in self.images:
-                self.bg += image
-            self.bg = self.bg/len(self.images)
-        except: #pictures could be an empty list, we don't want an error in that case. we just don't do anything to it then
-            return 0
+    def find_bg(self,bgres):
+        """Function that returns a list of the backgrounds for each image - now each image has a 
+        unique background given by the average of a range of images either side of the chosen image"""
+        self.backgrounds=[]
+        for image in range(len(self.images)):
+            self.bg = np.zeros_like(self.images[0])
+            if image < bgres:
+                for i in self.images[0:(2*bgres)+1]:
+                    self.bg += i
+                self.bg = self.bg/((2*bgres)+1)
+                self.backgrounds.append(self.bg)
+                
+            elif image > len(self.images) - (bgres+1):
+                for i in self.images[-1-(2*bgres):]:
+                        self.bg += i
+                self.bg = self.bg/((2*bgres)+1)
+                self.backgrounds.append(self.bg)
+                
+            else:
+                for i in self.images[image-bgres:image+bgres+1]:
+                    self.bg += i
+                self.bg = self.bg/((2*bgres)+1)
+                self.backgrounds.append(self.bg)
         
     def find_dust(self,threshold):
         """Function that sets dust images to brightness 1, and stores the positions in dust_positions array"""
