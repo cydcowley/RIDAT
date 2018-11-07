@@ -3,8 +3,6 @@ import matplotlib.image as m
 import matplotlib.pyplot as plt
 import os
 import numpy as np
-from plotly.offline import download_plotlyjs, init_notebook_mode, plot, iplot
-import plotly.graph_objs as go
 import imageio as io
 import os
 from sklearn import tree

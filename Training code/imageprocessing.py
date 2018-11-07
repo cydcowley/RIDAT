@@ -3,8 +3,6 @@ import matplotlib.image as m
 import matplotlib.pyplot as plt
 import os
 import numpy as np
-from plotly.offline import download_plotlyjs, init_notebook_mode, plot, iplot
-import plotly.graph_objs as go
 import imageio as io
 import os
 import cv2
@@ -25,7 +23,7 @@ def import_images(folder):
     for image in a[1:]:    
         img = m.imread(os.path.join(folder,image))  # imread reads an image from a file into an array
         print(type(img[0][0]))
-        if 'numpy' in str(type(img[0][0])):
+        if 'numpy' in str(type(img[0][0])): #checks whether image is rgba or gray
             img = rgb2gray(img)
         images.append(img)
     return(images)
@@ -42,9 +40,7 @@ def iterate_frames(images):
         images.activeimage=i
         current_frame={"xpositions":[],"ypositions":[],"widths":[], "lengths":[],"pixels":[],"name":"undefined"}
         [pos1, bgsub1] = images.find_dust(34)
-        print(i)
         current_frame["pixels"]=images.collect_dust(pos1)
-        print(i)
         current_frame = images.characterise_dust(current_frame["pixels"])
 
 

@@ -49,7 +49,7 @@ class Images:
     def find_dust(self,threshold):
         """Function that sets dust images to brightness 1, and stores the positions in dust_positions array"""
         dust_positions=[]
-        bgsubtracted_image = self.images[self.activeimage]-self.bg
+        bgsubtracted_image = self.images[self.activeimage]-self.backgrounds[self.activeimage]
         for i in range(len(bgsubtracted_image)):
             for j in range(len(bgsubtracted_image[0])):
                 if bgsubtracted_image[i][j]>=threshold:
@@ -60,7 +60,7 @@ class Images:
         return([dust_positions,bgsubtracted_image])
         
     def collect_dust(self,positions):
-        """Function that lumps dust pixels into dust grains, by checking if the bright pixels neighbor other bright pixels"""
+        """Function that lumps dust pixels into dust grains, by checking if the bright pixels neighbour other bright pixels"""
         
         dust_grains = []
         dust_grains.append([positions[0]])
@@ -88,7 +88,7 @@ class Images:
         
 
     def characterise_dust(self):
-        """Funciton that takes pixel locations of each dust grain and outpus entire dust grain position and dimensions"""
+        """Funciton that takes pixel locations of each dust grain and outputs entire dust grain position and dimensions"""
         
         dust_lengths=len(self.dust_this_frame["pixels"])*[0] # set placeholder positions and dimensions
         dust_widths= len(self.dust_this_frame["pixels"])*[0]
