@@ -6,7 +6,7 @@ import numpy as np
 import imageio as io
 import os
 import cv2
-
+import numpy
 
 
 def rgb2gray(rgb):
@@ -25,6 +25,13 @@ def import_images(folder):
         images.append(img)
     return(images)
 
+def import_images2(folder):
+    images = []
+    a =os.listdir(folder)
+    for image in a: 
+        img=numpy.loadtxt(os.path.join(folder,image))
+        images.append(img)
+    return images
 
 def find_bg(images):
     """Function that returns the average of all the images"""
@@ -35,8 +42,6 @@ def find_bg(images):
         return(bg/len(images))
     except: #pictures could be an empty list, we don't want an error in that case. we just don't do anything to it then
         return 0
-
-
 
 def variable_bg(images,bgres):
     """Function that returns a list of the backgrounds for each image - now each image has a
@@ -62,7 +67,7 @@ def variable_bg(images,bgres):
             bg = bg/((2*bgres)+1)
             backgrounds.append(bg)
 
-    return backgrounds
+    return(backgrounds)
 
 
 def find_dust(images,background,threshold,activeframe):
@@ -84,7 +89,7 @@ def find_dust(images,background,threshold,activeframe):
 
 def collect_dust(pixels):
     """Function that lumps dust pixels into dust grains, by checking if the bright pixels neighbor other bright pixels"""
-
+    
     dust_grains = []
     dust_grains.append([pixels[0]])
     pixels.pop(0)
@@ -106,8 +111,6 @@ def collect_dust(pixels):
             keep_dustgrains.append(grain)
     return(keep_dustgrains)
 
-
-
 def characterise_dust(pixels):
     """Funciton that takes pixel locations of each dust grain and outpus entire dust grain position and dimensions"""
     dust_this_frame={"x0s":[],"y0s":[],"x1s":[],"y1s":[],"widths":[],
@@ -122,8 +125,7 @@ def characterise_dust(pixels):
     for i in range(len(pixels)):
         for j in range(len(pixels[i])):
             for k in range(j,len(pixels[i])):
-                r2= (pixels[i][j][0]-pixels[i][k][0])**2
-                + (pixels[i][j][1] - pixels[i][k][1])**2
+                r2= (pixels[i][j][0]-pixels[i][k][0])**2 + (pixels[i][j][1] - pixels[i][k][1])**2
                 if dust_lengths[i] <= np.sqrt(r2):
                     dust_lengths[i] = np.sqrt(r2)
                     dust_x0s[i]= pixels[i][j][0]
@@ -167,11 +169,12 @@ def iterate_frames(images,thresh):
         current_frame = characterise_dust(current_frame["pixels"])
         dust_every_frame[i] = current_frame
 
-    return dust_every_frame,bgsub
+    return [dust_every_frame, bgsub]
+
 
 def make_gif(image_list,output_folder,file_name):
     io.mimsave(output_folder+'/'+file_name+'.gif', image_list, duration=0.5)
-            
+
             
         
         
