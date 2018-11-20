@@ -169,11 +169,8 @@ def iterate_frames(images,thresh):
 
     return dust_every_frame,bgsub
 
-def make_gif(self,image_list):
-    images = []
-    for filename in image_list:
-        images.append(io.imread("plots/"+filename))
-    io.mimsave('surface1.gif', images, duration=0.5)
+def make_gif(image_list,output_folder,file_name):
+    io.mimsave(output_folder+'/'+file_name+'.gif', image_list, duration=0.5)
             
             
         
