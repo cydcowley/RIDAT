@@ -2,6 +2,7 @@ import matplotlib
 import matplotlib.image as m
 import matplotlib.pyplot as plt
 import os
+from scipy import misc
 import numpy as np
 import imageio as io
 import os
@@ -19,9 +20,7 @@ def import_images(folder):
     images = []
     a=os.listdir(folder)  # listdir returns a list of the entries in the folder
     for image in a[1:]:
-        img = m.imread(os.path.join(folder,image))  # imread reads an image from a file into an array
-        if 'numpy' in str(type(img[0][0])): #checks whether image is rgba or gray
-            img = rgb2gray(img)
+        img = misc.imread(os.path.join(folder,image),flatten=1)  # imread reads an image from a file into an array
         images.append(img)
     return(images)
 
@@ -85,7 +84,8 @@ def find_dust(images,background,threshold,activeframe):
                 dust_positions.append([i,j])
             else:
                 bgsubtracted_image[i][j]=0.0
-    return([dust_positions,bgsubtracted_image])
+    else:
+        return([dust_positions,bgsubtracted_image])
 
 def collect_dust(pixels):
     """Function that lumps dust pixels into dust grains, by checking if the bright pixels neighbor other bright pixels"""
@@ -165,6 +165,9 @@ def iterate_frames(images,thresh):
                      "lengths":[],"pixels":[]}
         [positions, bgsub_image] = find_dust(images=images,background=bg,threshold=thresh,activeframe=i)
         bgsub.append(bgsub_image)
+        if len(positions) == 0:
+            dust_every_frame[i] = current_frame
+            continue
         current_frame["pixels"]=collect_dust(positions)
         current_frame = characterise_dust(current_frame["pixels"])
         dust_every_frame[i] = current_frame
