@@ -6,192 +6,314 @@ import numpy as np
 import imageio as io
 import os
 from sklearn import tree
+from sklearn.naive_bayes import GaussianNB
 import cv2
 
 
-def train(dust_dictionary,images):
+def find_dp_detheta_avtheta(position_listx,position_listy):
+    dp_list=[]
+    angle_list=[]
+    dytotoal=0
+    dxtotal=0
+    for i in range(0,len(position_listx)-1):
+        dy=position_listy[i+1]-position_listy[i]
+        dx=position_listx[i+1]-position_listx[i]
+        dytotoal+=dy
+        dxtotal+=dx
+        dp_list.append(np.sqrt(dy**2+dx**2))
+        angle = np.arctan2(dy,dx)
+        angle_list.append(angle)
+    delta_angle_list=[]
+    for i in range(0,len(angle_list)-1):
+        d_angle = np.sqrt((angle_list[i+1]-angle_list[i])**2)
+        if d_angle > np.pi:
+            d_angle = 2*np.pi-d_angle
+        delta_angle_list.append(d_angle)
+
+    return dp_list,np.mean(delta_angle_list),np.arctan2(dytotoal,dxtotal)
+
+
+def sort_points(unordered_pointsx, unordered_pointsy):
+    min_dist = 10000
+    for j in range(2):
+        for k in range(2, 4):
+            dist = np.sqrt((unordered_pointsx[k] - unordered_pointsx[j]) ** 2 + (unordered_pointsy[k] - unordered_pointsy[j])**2)
+            if dist < min_dist:
+                min_dist = dist
+                correct_pair = [j, k]
+    x0 = unordered_pointsx.pop(correct_pair[0])
+    y0 = unordered_pointsy.pop(correct_pair[0])
+    unordered_pointsx.insert(1, x0)
+    unordered_pointsy.insert(1, y0)
+    x1 = unordered_pointsx.pop(correct_pair[1])
+    y1 = unordered_pointsy.pop(correct_pair[1])
+    unordered_pointsx.insert(2, x1)
+    unordered_pointsy.insert(2, y1)
+
+    for i in range(3,len(unordered_pointsx)-2,2):
+
+        d1=np.sqrt((unordered_pointsx[i+1]-unordered_pointsx[i])**2+(unordered_pointsy[i+1]-unordered_pointsy[i])**2)
+        d2=np.sqrt((unordered_pointsx[i+2]-unordered_pointsx[i])**2+(unordered_pointsy[i+2]-unordered_pointsy[i])**2)
+        if d2<d1:
+            x0 = unordered_pointsx.pop(i+1)
+            y0 = unordered_pointsy.pop(i+1)
+            unordered_pointsx.insert(i+2, x0)
+            unordered_pointsy.insert(i+2, y0)
+    return unordered_pointsx,unordered_pointsy
+
+
+def train(dust_dictionary,images,streak):
     """When dust in all frames has been sorted and characterised, this function connects dust particles across frames, forming a trajectory"""
 
+    def create_tempimage(frame, numberedorder, x, y):
+        sizes = np.shape(images[frame])
+        height = float(sizes[0])
+        width = float(sizes[1])
+        fig = plt.figure(frameon=False)
+        fig.set_size_inches(width / height, 1, forward=False)
+        ax = plt.Axes(fig, [0., 0., 1., 1.])
+        ax.set_axis_off()
+        fig.add_axes(ax)
+        ax.imshow(images[frame])
+        plt.scatter(y, x,s=1)
+        fig.savefig("temp" + str(numberedorder), dpi=height)
+        plt.clf()
+        plt.cla()
+        plt.close()
+
+    def nearest_point_to_mouse(mousex, mousey, dustx, dusty):
+        dist_min = 1000000
+        for i in range(len(dustx)):
+            dist = np.sqrt((mousex - dusty[i]) ** 2 + (mousey - dustx[i]) ** 2)
+            if dist < dist_min:
+                dist_min = dist
+                index_min = i
+        return index_min
+
+    def onMouse0(event, x, y, flags, param):
+        global x0, y0, index0
+        if event == cv2.EVENT_LBUTTONDOWN:
+            index0 = nearest_point_to_mouse(x,y,dust_dictionary[frame_0]["x0s"],dust_dictionary[frame_0]["y0s"])
+            x0=dust_dictionary[frame_0]["x0s"][index0]
+            y0=dust_dictionary[frame_0]["y0s"][index0]
+
+    def onMouse1(event, x, y, flags, param):
+        global x1, y1,index1
+        if event == cv2.EVENT_LBUTTONDOWN:
+            index1 = nearest_point_to_mouse(x,y,dust_dictionary[frame_1]["x0s"],dust_dictionary[frame_1]["y0s"])
+            x1=dust_dictionary[frame_1]["x0s"][index1]
+            y1=dust_dictionary[frame_1]["y0s"][index1]
+
+    def onMouse2(event, x, y, flags, param):
+        global x2, y2, index2
+        if event == cv2.EVENT_LBUTTONDOWN:
+            index2 = nearest_point_to_mouse(x,y,dust_dictionary[frame_2]["x0s"],dust_dictionary[frame_2]["y0s"])
+            x2=dust_dictionary[frame_2]["x0s"][index2]
+            y2=dust_dictionary[frame_2]["y0s"][index2]
+
     training = {"sigma_delta_position": [], "mean_delta_position": [], "mean_delta_theta": [], "mean_delta_width": [],
-                "mean_delta_brightness": [], "identifier": []}  # define an empty dictionary of machine learning parameters
-    
+                "mean_delta_brightness": [], "mean_theta":[], "identifier": []}  # define an empty dictionary of machine learning parameters
+    stopping=False
     for frame in range(len(dust_dictionary) - 2):
         
-        frame_1 = frame
-        frame_2 = frame + 1
-        frame_3 = frame + 2
-        
-        for i in range(len(dust_dictionary[frame_1]["x0s"])):  # cycle through every dust grain combination across three frames
-            
-            avx0 = (dust_dictionary[frame_1]["x0s"][i] + dust_dictionary[frame_1]["x1s"][i]) / 2
-            avy0 = (dust_dictionary[frame_1]["y0s"][i] + dust_dictionary[frame_1]["y1s"][i]) / 2
-            theta0 = np.arctan2((dust_dictionary[frame_1]["y0s"][i] - dust_dictionary[frame_1]["y1s"][i]),
-                                (dust_dictionary[frame_1]["x0s"][i] - dust_dictionary[frame_1]["x1s"][i]))
-            IDed_track = False
-            
-            for j in range(len(dust_dictionary[frame_2]["x0s"])):
+        frame_0 = frame
+        frame_1 = frame + 1
+        frame_2 = frame + 2
+        nextframe=False
+
+        global x0,y0,x1,y1,x2,y2,index0,index1,index2
+        x0,y0,x1,y1,x2,y2,index0,index1,index2=0,0,0,0,0,0,0,0,0
+
+        while nextframe== False:
+
+            create_tempimage(frame_0,0,x0,y0)
+            create_tempimage(frame_1, 1, x1, y1)
+            create_tempimage(frame_2, 2, x2, y2)
+
                 
-                avx1 = (dust_dictionary[frame_2]["x0s"][j] + dust_dictionary[frame_2]["x1s"][j]) / 2
-                avy1 = (dust_dictionary[frame_2]["y0s"][j] + dust_dictionary[frame_2]["y1s"][j]) / 2
-                dx0 = dust_dictionary[frame_2]["x0s"][j] - dust_dictionary[frame_1]["x0s"][i]
-                dy0 = dust_dictionary[frame_2]["y0s"][j] - dust_dictionary[frame_1]["y0s"][i]
-                theta1 = np.arctan2((dust_dictionary[frame_2]["y0s"][j] - dust_dictionary[frame_2]["y1s"][j]),
-                                    (dust_dictionary[frame_2]["x0s"][j] - dust_dictionary[frame_2]["x1s"][j]))
-                dw0 = np.abs(dust_dictionary[frame_2]["widths"][j] - dust_dictionary[frame_1]["widths"][i])
-                dp0 = np.sqrt(dx0**2 + dy0**2)
-                dtheta0 = np.abs(theta1 - theta0)
+            img0 = cv2.imread('temp0.png')
+            img1 = cv2.imread('temp1.png')
+            img2 = cv2.imread('temp2.png')
                 
-                for k in range(len(dust_dictionary[frame_3]["x0s"])):
-                    
-                    avx2 = (dust_dictionary[frame_3]["x0s"][k] + dust_dictionary[frame_3]["x1s"][k]) / 2
-                    avy2 = (dust_dictionary[frame_3]["y0s"][k] + dust_dictionary[frame_3]["y1s"][k]) / 2
-                    dx1 = dust_dictionary[frame_3]["x0s"][k] - dust_dictionary[frame_2]["x0s"][j]
-                    dy1 = dust_dictionary[frame_3]["y0s"][k] - dust_dictionary[frame_2]["y0s"][j]
-                    theta2 = np.arctan2((dust_dictionary[frame_3]["y0s"][k] - dust_dictionary[frame_3]["y1s"][k]),
-                                        (dust_dictionary[frame_3]["x0s"][k] - dust_dictionary[frame_3]["x1s"][k]))
-                    dw1 = np.abs(dust_dictionary[frame_3]["widths"][k] - dust_dictionary[frame_2]["widths"][j])
-                    dp1 = np.sqrt(dx1**2 + dy1**2)
-                    dtheta1 = np.abs(theta2 - theta1)
-                
-                    dp_mean = (dp0 + dp1)/2
-                    dtheta_mean = (dtheta0 + dtheta1)/2
-                    dw_mean = (dw0 + dw1)/2
-                    dp_sigma = np.sqrt((dp0 - dp_mean)**2 + (dp1 - dp_mean)**2) # using Bessels correction
-                    
-                    training["sigma_delta_position"].append(dp_sigma)
-                    training["mean_delta_position"].append(dp_mean)
-                    training["mean_delta_theta"].append(dtheta_mean)
-                    training["mean_delta_width"].append(dw_mean)
-                    
-                    if IDed_track == False:
-                    
-                        implot0 = plt.imshow(images[frame_1])
-                        plt.scatter([avy0], [avx0])
-                        plt.savefig("temp0")
-                        plt.clf()
-                        plt.cla()
-                        plt.close()
-                
-                        implot1 = plt.imshow(images[frame_2])
-                        plt.scatter([avy1], [avx1])
-                        plt.savefig("temp1")
-                        plt.clf()
-                        plt.cla()
-                        plt.close()
-                        
-                        implot2 = plt.imshow(images[frame_3])
-                        plt.scatter([avy2], [avx2])
-                        plt.savefig("temp2")
-                        plt.clf()
-                        plt.cla()
-                        plt.close()
-                
-                        img0 = cv2.imread('temp0.png')
-                        img1 = cv2.imread('temp1.png')
-                        img2 = cv2.imread('temp2.png')
-                
-                        while True:  # displays current and next frame until a key is pressed
-                            cv2.imshow('img0', img0)
-                            cv2.imshow('img1', img1)
-                            cv2.imshow('img2', img2)
-                            key = cv2.waitKey(33)
-                            if key == 27:  # Esc key to stop
-                                break
-                            elif key == 121:  # normally -1 returned,so don't print it
-                                training["identifier"].append("yes")
-                                IDed_track = True
-                                break
-                            elif key == 110:
-                                training["identifier"].append("no")
-                                break
-                    else:
-                       training["identifier"].append("no")
+            while True:  # displays current and next frame until a key is pressed
+                cv2.imshow('img0', img0)
+                cv2.imshow('img1', img1)
+                cv2.imshow('img2', img2)
+                cv2.setMouseCallback("img0", onMouse0)
+                cv2.setMouseCallback("img1", onMouse1)
+                cv2.setMouseCallback("img2", onMouse2)
+
+                key = cv2.waitKey(33)
+                if key ==27:
+                    stopping = True
+                    nextframe=True
+                    break
+                if key ==13:
+                    break
+                elif key == 115:
+                    def append_variables():
+                        trackx = []
+                        tracky = []
+                        trackw = []
+
+
+                        # append unordered positions and widths of particle i frame 0 to track lists
+                        trackx.append(dust_dictionary[frame_0]["x0s"][index0])
+                        tracky.append(dust_dictionary[frame_0]["y0s"][index0])
+                        if streak == True:
+                            trackx.append(dust_dictionary[frame_0]["x1s"][index0])
+                            tracky.append(dust_dictionary[frame_0]["y1s"][index0])
+
+                        trackw.append(dust_dictionary[frame_0]["widths"][index0])
+
+                        # append unordered positions and widths of particle j frame 1 to track lists
+
+                        trackx.append(dust_dictionary[frame_1]["x0s"][index1])
+                        tracky.append(dust_dictionary[frame_1]["y0s"][index1])
+                        if streak == True:
+                            trackx.append(dust_dictionary[frame_1]["x1s"][index1])
+                            tracky.append(dust_dictionary[frame_1]["y1s"][index1])
+
+                        trackw.append(dust_dictionary[frame_1]["widths"][index1])
+
+                        # append unordered positions and widths of particle j frame 1 to track lists
+
+                        trackx.append(dust_dictionary[frame_2]["x0s"][index2])
+                        tracky.append(dust_dictionary[frame_2]["y0s"][index2])
+                        if streak == True:
+                            trackx.append(dust_dictionary[frame_2]["x1s"][index2])
+                            tracky.append(dust_dictionary[frame_2]["y1s"][index2])
+
+                        trackw.append(dust_dictionary[frame_2]["widths"][index2])
+                        if streak == True:
+                            trackx, tracky = sort_points(trackx, tracky)
+                        track_dist, mean_delta_theta, mean_theta = find_dp_detheta_avtheta(trackx, tracky)
+                        mean_delta_position = np.mean(track_dist)
+                        sigma_delta_position = np.std(track_dist)
+                        mean_delta_width = np.std(trackw)
+
+                        training["sigma_delta_position"].append(sigma_delta_position)
+                        training["mean_delta_position"].append(mean_delta_position)
+                        training["mean_delta_theta"].append(mean_delta_theta)
+                        training["mean_delta_width"].append(mean_delta_width)
+                        training["mean_theta"].append(mean_theta)
+                    append_variables()
+                    training["identifier"].append(1)
+
+                    for j in range(len(dust_dictionary[frame_1]["y1s"])):
+                        for k in range(len(dust_dictionary[frame_2]["y1s"])):
+                            if j == index1 and k==index2: # ensure that the track saved as yes is not also counted as a no
+                                continue
+                            index1 = j
+                            index2 = k
+                            append_variables()
+                            training["identifier"].append(0)
+                    break
+                elif key == 110:
+                    nextframe=True
+                    break
+        if stopping==True:
+            break
     return training
 
 
-
-def track(dust_dictionary,features,labels):
+def track(dust_dictionary,features,labels,streak):
     """When dust in all frames has been sorted and characterised, this function connects dust particles across frames, forming a trajectory"""
-    clf = tree.DecisionTreeClassifier()
+    clf = GaussianNB()
     clf = clf.fit(features, labels)
 
-    trackx = []
-    tracky = []
-    trackw=[]
-    track_theta=[]
-    track_lastframe=[] #defines the last frame where a dust grain in a given track was recorded
+    trackxtotal = [[]]
+    trackytotal = [[]]
+    trackwtotal=[[]]
+    track_lastframe=[[]] #defines the last frame where a dust grain in a given track was recorded
     
     for frame in range(len(dust_dictionary) - 2):
-        
-        frame_1 = frame
-        frame_2 = frame + 1
-        frame_3 = frame + 2
-        
-        for i in range(len(dust_dictionary[frame_1]["x0s"])):  # cycle through every dust grain combination across three frames
-            
-            x0i = dust_dictionary[frame_1]["x0s"][i]
-            y0i = dust_dictionary[frame_1]["y0s"][i]
-            theta0 = np.arctan2((dust_dictionary[frame_1]["y0s"][i] - dust_dictionary[frame_1]["y1s"][i]),
-                                (dust_dictionary[frame_1]["x0s"][i] - dust_dictionary[frame_1]["x1s"][i]))
-            trackx.append([x0i])
-            tracky.append([y0i])
-            track_lastframe.append([frame])
-            prob0 = 0
-            
-            for j in range(len(dust_dictionary[frame_2]["x0s"])):
-                
-                dx0 = dust_dictionary[frame_2]["x0s"][j] - dust_dictionary[frame_1]["x0s"][i]
-                dy0 = dust_dictionary[frame_2]["y0s"][j] - dust_dictionary[frame_1]["y0s"][i]
-                theta1 = np.arctan2((dust_dictionary[frame_2]["y0s"][j] - dust_dictionary[frame_2]["y1s"][j]),
-                                    (dust_dictionary[frame_2]["x0s"][j] - dust_dictionary[frame_2]["x1s"][j]))
-                dw0 = np.abs(dust_dictionary[frame_2]["widths"][j] - dust_dictionary[frame_1]["widths"][i])
-                dp0 = np.sqrt(dx0**2 + dy0**2)
-                dtheta0 = np.abs(theta1 - theta0)
-                
-                for k in range(len(dust_dictionary[frame_3]["x0s"])):
-                    
-                    dx1 = dust_dictionary[frame_3]["x0s"][k] - dust_dictionary[frame_2]["x0s"][j]
-                    dy1 = dust_dictionary[frame_3]["y0s"][k] - dust_dictionary[frame_2]["y0s"][j]
-                    theta2 = np.arctan2((dust_dictionary[frame_3]["y0s"][k] - dust_dictionary[frame_3]["y1s"][k]),
-                                        (dust_dictionary[frame_3]["x0s"][k] - dust_dictionary[frame_3]["x1s"][k]))
-                    dw1 = np.abs(dust_dictionary[frame_3]["widths"][k] - dust_dictionary[frame_2]["widths"][j])
-                    dp1 = np.sqrt(dx1**2 + dy1**2)
-                    dtheta1 = np.abs(theta2 - theta1)
-                
-                    dp_mean = (dp0 + dp1)/2
-                    dtheta_mean = (dtheta0 + dtheta1)/2
-                    dw_mean = (dw0 + dw1)/2
-                    dp_sigma = np.sqrt((dp0 - dp_mean)**2 + (dp1 - dp_mean)**2) # using Bessels correction
-                    
-                    prob1 = clf.predict_proba([[dp_sigma,dp_mean,dtheta_mean,dw_mean]])[0][1]
-                    print(clf.predict([[dp_sigma,dp_mean,dtheta_mean,dw_mean]]))
-                    print(prob1)
+        print(frame)
+        frame_0 = frame
+        frame_1 = frame + 1
+        frame_2 = frame + 2
+
+        for i in range(len(dust_dictionary[frame_0]["x0s"])):  # cycle through every dust grain combination across three frames
+            prob0=0.7
+            for j in range(len(dust_dictionary[frame_1]["x0s"])):
+                for k in range(len(dust_dictionary[frame_2]["x0s"])):
+
+                    trackx = []
+                    tracky = []
+                    trackw = []
+
+                    # append unordered positions and widths of particle i frame 0 to track lists
+                    trackx.append(dust_dictionary[frame_0]["x0s"][i])
+                    tracky.append(dust_dictionary[frame_0]["y0s"][i])
+                    if streak == True:
+                        trackx.append(dust_dictionary[frame_0]["x1s"][i])
+                        tracky.append(dust_dictionary[frame_0]["y1s"][i])
+
+                    trackw.append(dust_dictionary[frame_0]["widths"][i])
+
+                    # append unordered positions and widths of particle j frame 1 to track lists
+
+                    trackx.append(dust_dictionary[frame_1]["x0s"][j])
+                    tracky.append(dust_dictionary[frame_1]["y0s"][j])
+                    if streak == True:
+                        trackx.append(dust_dictionary[frame_1]["x1s"][j])
+                        tracky.append(dust_dictionary[frame_1]["y1s"][j])
+
+                    trackw.append(dust_dictionary[frame_1]["widths"][j])
+
+                    # append unordered positions and widths of particle j frame 1 to track lists
+
+                    trackx.append(dust_dictionary[frame_2]["x0s"][k])
+                    tracky.append(dust_dictionary[frame_2]["y0s"][k])
+                    if streak == True:
+                        trackx.append(dust_dictionary[frame_2]["x1s"][k])
+                        tracky.append(dust_dictionary[frame_2]["y1s"][k])
+
+                    trackw.append(dust_dictionary[frame_2]["widths"][k])
+                    if streak == True:
+                        trackx, tracky = sort_points(trackx, tracky)
+                    track_dist, mean_delta_theta, mean_theta = find_dp_detheta_avtheta(trackx, tracky)
+                    mean_delta_position = np.mean(track_dist)
+                    sigma_delta_position = np.std(track_dist)
+                    mean_delta_width = np.std(trackw)
+                    prob1 = clf.predict_proba([[sigma_delta_position,mean_delta_position,mean_delta_theta,mean_delta_width,mean_theta]])[0][1]
+
                     if prob1 > prob0:
                         prob0 = prob1
-                        a=[j,k]
-                        
-            #print('frame_1=',len(dust_dictionary[frame_1]["x0s"]))
-            #print('frame_2=',len(dust_dictionary[frame_2]["x0s"]))
-            #print('j=',a[0])
-            #print('frame_3=',len(dust_dictionary[frame_3]["x0s"]))
-            #print('k=',a[1])
-            if prob0 != float(0):
-                trackx[i].append(dust_dictionary[frame_2]["x0s"][a[0]])
-                trackx[i].append(dust_dictionary[frame_3]["x0s"][a[1]])
-                tracky[i].append(dust_dictionary[frame_2]["y0s"][a[0]])
-                tracky[i].append(dust_dictionary[frame_3]["y0s"][a[1]])
-                track_lastframe[i].append(frame_2)
-                track_lastframe[i].append(frame_3)
-                if frame_1 >= 2:
-                    for r in range(len(trackx)):
-                        if trackx[i][0] == trackx[r][-1] and tracky[i][0] == tracky[r][-1]:
-                            trackx[i] += trackx[r]
-                            tracky[i] += tracky[r]
-                dust_dictionary[frame_2]["x0s"].pop(a[0])
-                dust_dictionary[frame_2]["x1s"].pop(a[0])
-                dust_dictionary[frame_2]["y0s"].pop(a[0])
-                dust_dictionary[frame_2]["y1s"].pop(a[0])
-                dust_dictionary[frame_2]["widths"].pop(a[0])
-            
-    return (trackx,tracky,track_lastframe)
+
+                        trackxfinal=trackx
+                        trackyfinal=tracky
+                        trackwfinal=trackw
+                        if streak == True:
+                            trackframefinal=[frame_0,frame_0,frame_1,frame_1,frame_2,frame_2]
+                        else:
+                            trackframefinal = [frame_0, frame_1, frame_2]
+            if prob0 > float(0.7):
+                contained=False
+                for y in range(len(trackxtotal)):
+                    for z in range(len(trackxtotal[y])):
+                        if (trackxtotal[y][z]==trackxfinal[0] and trackytotal[y][z] == trackyfinal[0]):
+                            contained = [y,z]
+                if contained == False:
+                    trackxtotal.append(trackxfinal)
+                    trackytotal.append(trackyfinal)
+                    trackwtotal.append(trackwfinal)
+                    track_lastframe.append(trackframefinal)
+                else:
+                    #if current total track has overextended slightly, cut it short
+
+                    trackxtotal[contained[0]] = trackxtotal[contained[0]][0:contained[1]]
+                    trackytotal[contained[0]] = trackytotal[contained[0]][0:contained[1]]
+                    trackwtotal[contained[0]] = trackwtotal[contained[0]][0:contained[1]]
+                    track_lastframe[contained[0]] = track_lastframe[contained[0]][0:contained[1]]
+
+                    trackxtotal[contained[0]].extend(trackxfinal)
+                    trackytotal[contained[0]].extend(trackyfinal)
+                    trackwtotal[contained[0]].extend(trackwfinal)
+                    track_lastframe[contained[0]].extend(trackframefinal)
+
+    trackxtotal.pop(0)
+    trackytotal.pop(0)
+    track_lastframe.pop(0)
+    return (trackxtotal,trackytotal,track_lastframe)
 
