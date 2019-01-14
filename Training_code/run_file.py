@@ -25,7 +25,16 @@ dict,bgsub=ip.iterate_frames(set_1,40)
 # f.write(json)
 # f.close()
 
+cv2.setMouseCallback('image',mouse_callback) 
+while True:
+    cv2.imshow('image',bgsub[5])
+    k = cv2.waitKey(4)
+    if k == 27:
+        break
+cv2.destroyAllWindows()
+"""
 
+training_data=dd.train(dict, bgsub)
 
 training_data={"sigma_delta_position": [], "mean_delta_position": [], "mean_delta_theta": [],
                "mean_delta_width":[],"mean_theta":[],"identifier": []}
@@ -110,3 +119,5 @@ for i in range(len(set_1)):
     os.remove("tracks/temp.png")
 ip.make_gif(images,"tracks","surface")
 
+    ip.make_gif(images,"tracks","surface"+str(i))
+"""
