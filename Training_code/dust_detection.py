@@ -144,11 +144,15 @@ def train(dust_dictionary,images,streak):
                 cv2.setMouseCallback("img2", onMouse2)
 
                 key = cv2.waitKey(33)
+                print(key)
                 if key ==27:
                     stopping = True
                     nextframe=True
                     break
                 if key ==13:
+                    break
+                elif key == 110:
+                    nextframe = True
                     break
                 elif key == 115:
                     def append_variables():
@@ -156,35 +160,37 @@ def train(dust_dictionary,images,streak):
                         tracky = []
                         trackw = []
 
-
                         # append unordered positions and widths of particle i frame 0 to track lists
                         trackx.append(dust_dictionary[frame_0]["x0s"][index0])
                         tracky.append(dust_dictionary[frame_0]["y0s"][index0])
+                        trackw.append(dust_dictionary[frame_0]["widths"][index0])
                         if streak == True:
                             trackx.append(dust_dictionary[frame_0]["x1s"][index0])
                             tracky.append(dust_dictionary[frame_0]["y1s"][index0])
+                            trackw.append(dust_dictionary[frame_0]["widths"][index0])
 
-                        trackw.append(dust_dictionary[frame_0]["widths"][index0])
 
                         # append unordered positions and widths of particle j frame 1 to track lists
 
                         trackx.append(dust_dictionary[frame_1]["x0s"][index1])
                         tracky.append(dust_dictionary[frame_1]["y0s"][index1])
+                        trackw.append(dust_dictionary[frame_1]["widths"][index1])
                         if streak == True:
                             trackx.append(dust_dictionary[frame_1]["x1s"][index1])
                             tracky.append(dust_dictionary[frame_1]["y1s"][index1])
+                            trackw.append(dust_dictionary[frame_1]["widths"][index1])
 
-                        trackw.append(dust_dictionary[frame_1]["widths"][index1])
 
                         # append unordered positions and widths of particle j frame 1 to track lists
 
                         trackx.append(dust_dictionary[frame_2]["x0s"][index2])
                         tracky.append(dust_dictionary[frame_2]["y0s"][index2])
+                        trackw.append(dust_dictionary[frame_2]["widths"][index2])
                         if streak == True:
                             trackx.append(dust_dictionary[frame_2]["x1s"][index2])
                             tracky.append(dust_dictionary[frame_2]["y1s"][index2])
+                            trackw.append(dust_dictionary[frame_2]["widths"][index2])
 
-                        trackw.append(dust_dictionary[frame_2]["widths"][index2])
                         if streak == True:
                             trackx, tracky = sort_points(trackx, tracky)
                         track_dist, mean_delta_theta, mean_theta = find_dp_detheta_avtheta(trackx, tracky)
@@ -209,15 +215,13 @@ def train(dust_dictionary,images,streak):
                             append_variables()
                             training["identifier"].append(0)
                     break
-                elif key == 110:
-                    nextframe=True
-                    break
+
         if stopping==True:
             break
     return training
 
 
-def track(dust_dictionary,features,labels,streak):
+def track(dust_dictionary,features,labels,streak,Threshold_probability):
     """When dust in all frames has been sorted and characterised, this function connects dust particles across frames, forming a trajectory"""
     clf = GaussianNB()
     clf = clf.fit(features, labels)
@@ -225,6 +229,7 @@ def track(dust_dictionary,features,labels,streak):
     trackxtotal = [[]]
     trackytotal = [[]]
     trackwtotal=[[]]
+    trackbtotal=[[]]
     track_lastframe=[[]] #defines the last frame where a dust grain in a given track was recorded
     
     for frame in range(len(dust_dictionary) - 2):
@@ -234,42 +239,50 @@ def track(dust_dictionary,features,labels,streak):
         frame_2 = frame + 2
 
         for i in range(len(dust_dictionary[frame_0]["x0s"])):  # cycle through every dust grain combination across three frames
-            prob0=0.7
+            prob0=Threshold_probability
             for j in range(len(dust_dictionary[frame_1]["x0s"])):
                 for k in range(len(dust_dictionary[frame_2]["x0s"])):
 
                     trackx = []
                     tracky = []
                     trackw = []
+                    trackb=[]
 
                     # append unordered positions and widths of particle i frame 0 to track lists
                     trackx.append(dust_dictionary[frame_0]["x0s"][i])
                     tracky.append(dust_dictionary[frame_0]["y0s"][i])
+                    trackw.append(dust_dictionary[frame_0]["widths"][i])
+                    trackb.append(dust_dictionary[frame_0]["brightness"][i])
                     if streak == True:
                         trackx.append(dust_dictionary[frame_0]["x1s"][i])
                         tracky.append(dust_dictionary[frame_0]["y1s"][i])
-
-                    trackw.append(dust_dictionary[frame_0]["widths"][i])
+                        trackw.append(dust_dictionary[frame_0]["widths"][i])
+                        trackb.append(dust_dictionary[frame_0]["brightness"][i])
 
                     # append unordered positions and widths of particle j frame 1 to track lists
 
                     trackx.append(dust_dictionary[frame_1]["x0s"][j])
                     tracky.append(dust_dictionary[frame_1]["y0s"][j])
+                    trackw.append(dust_dictionary[frame_1]["widths"][j])
+                    trackb.append(dust_dictionary[frame_1]["brightness"][j])
                     if streak == True:
                         trackx.append(dust_dictionary[frame_1]["x1s"][j])
                         tracky.append(dust_dictionary[frame_1]["y1s"][j])
-
-                    trackw.append(dust_dictionary[frame_1]["widths"][j])
+                        trackw.append(dust_dictionary[frame_1]["widths"][j])
+                        trackb.append(dust_dictionary[frame_1]["brightness"][j])
 
                     # append unordered positions and widths of particle j frame 1 to track lists
 
                     trackx.append(dust_dictionary[frame_2]["x0s"][k])
                     tracky.append(dust_dictionary[frame_2]["y0s"][k])
+                    trackw.append(dust_dictionary[frame_2]["widths"][k])
+                    trackb.append(dust_dictionary[frame_2]["brightness"][k])
                     if streak == True:
                         trackx.append(dust_dictionary[frame_2]["x1s"][k])
                         tracky.append(dust_dictionary[frame_2]["y1s"][k])
+                        trackw.append(dust_dictionary[frame_2]["widths"][k])
+                        trackb.append(dust_dictionary[frame_2]["brightness"][k])
 
-                    trackw.append(dust_dictionary[frame_2]["widths"][k])
                     if streak == True:
                         trackx, tracky = sort_points(trackx, tracky)
                     track_dist, mean_delta_theta, mean_theta = find_dp_detheta_avtheta(trackx, tracky)
@@ -284,11 +297,12 @@ def track(dust_dictionary,features,labels,streak):
                         trackxfinal=trackx
                         trackyfinal=tracky
                         trackwfinal=trackw
+                        trackbfinal=trackb
                         if streak == True:
                             trackframefinal=[frame_0,frame_0,frame_1,frame_1,frame_2,frame_2]
                         else:
                             trackframefinal = [frame_0, frame_1, frame_2]
-            if prob0 > float(0.7):
+            if prob0 > float(Threshold_probability):
                 contained=False
                 for y in range(len(trackxtotal)):
                     for z in range(len(trackxtotal[y])):
@@ -298,6 +312,7 @@ def track(dust_dictionary,features,labels,streak):
                     trackxtotal.append(trackxfinal)
                     trackytotal.append(trackyfinal)
                     trackwtotal.append(trackwfinal)
+                    trackbtotal.append(trackbfinal)
                     track_lastframe.append(trackframefinal)
                 else:
                     #if current total track has overextended slightly, cut it short
@@ -305,15 +320,19 @@ def track(dust_dictionary,features,labels,streak):
                     trackxtotal[contained[0]] = trackxtotal[contained[0]][0:contained[1]]
                     trackytotal[contained[0]] = trackytotal[contained[0]][0:contained[1]]
                     trackwtotal[contained[0]] = trackwtotal[contained[0]][0:contained[1]]
+                    trackbtotal[contained[0]] = trackbtotal[contained[0]][0:contained[1]]
                     track_lastframe[contained[0]] = track_lastframe[contained[0]][0:contained[1]]
 
                     trackxtotal[contained[0]].extend(trackxfinal)
                     trackytotal[contained[0]].extend(trackyfinal)
                     trackwtotal[contained[0]].extend(trackwfinal)
+                    trackbtotal[contained[0]].extend(trackbfinal)
                     track_lastframe[contained[0]].extend(trackframefinal)
 
     trackxtotal.pop(0)
     trackytotal.pop(0)
+    trackwtotal.pop(0)
+    trackbtotal.pop(0)
     track_lastframe.pop(0)
-    return (trackxtotal,trackytotal,track_lastframe)
+    return (trackxtotal,trackytotal,trackbtotal,track_lastframe)
 

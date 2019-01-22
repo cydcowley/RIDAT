@@ -80,8 +80,8 @@ def find_dust(images,background,threshold,activeframe):
     for i in range(len(bgsubtracted_image)):
         for j in range(len(bgsubtracted_image[0])):
             if bgsubtracted_image[i][j]>=threshold:
+                dust_positions.append([i, j, bgsubtracted_image[i][j]])
                 bgsubtracted_image[i][j]=1.0
-                dust_positions.append([i,j])
             else:
                 bgsubtracted_image[i][j]=0.0
     else:
@@ -114,16 +114,20 @@ def collect_dust(pixels):
 def characterise_dust(pixels):
     """Funciton that takes pixel locations of each dust grain and outpus entire dust grain position and dimensions"""
     dust_this_frame={"x0s":[],"y0s":[],"x1s":[],"y1s":[],"widths":[],
-                     "lengths":[],"pixels":[],"name":"undefined"}
+                     "lengths":[],"pixels":[],"brightness":[]}
     dust_lengths=len(pixels)*[0] # set placeholder positions and dimensions
     dust_widths= len(pixels)*[0]
     dust_x0s = len(pixels)*[0]
     dust_y0s =len(pixels)*[0]
     dust_x1s = len(pixels) * [0]
     dust_y1s = len(pixels) * [0]
+    dust_brightness = len(pixels) * [0]
 
     for i in range(len(pixels)):
         for j in range(len(pixels[i])):
+            dust_brightness[i]+=pixels[i][j][2]
+
+            #find length and width by finding the largest distance between two points on a dust grain
             for k in range(j,len(pixels[i])):
                 r2= (pixels[i][j][0]-pixels[i][k][0])**2 + (pixels[i][j][1] - pixels[i][k][1])**2
                 if dust_lengths[i] <= np.sqrt(r2):
@@ -132,6 +136,9 @@ def characterise_dust(pixels):
                     dust_x1s[i]= pixels[i][k][0]
                     dust_y0s[i]= pixels[i][j][1]
                     dust_y1s[i]= pixels[i][k][1]
+
+        #determine average brightness via total brightness/number of pixels
+        dust_brightness[i] = dust_brightness[i]/len(pixels[i])
 
     for i in range(len(dust_lengths)):
         dust_widths[i] = len(pixels[i])/(dust_lengths[i]+1)
@@ -154,12 +161,13 @@ def characterise_dust(pixels):
     dust_this_frame["y1s"] = dust_y1s
     dust_this_frame["widths"]=dust_widths
     dust_this_frame["lengths"]=dust_lengths
+    dust_this_frame["brightness"]= dust_brightness
     return(dust_this_frame)
 
 def iterate_frames(images,thresh):
     dust_every_frame=len(images)*[0]
     bgsub=[]
-    bg = variable_bg(images,2)
+    bg = variable_bg(images,3)
     for i in range(len(images)):
         current_frame={"x0s":[],"y0s":[],"x1s":[],"y1s":[],"widths":[],
                      "lengths":[],"pixels":[]}
@@ -175,8 +183,8 @@ def iterate_frames(images,thresh):
     return [dust_every_frame, bgsub]
 
 
-def make_gif(image_list,output_folder,file_name):
-    io.mimsave(output_folder+'/'+file_name+'.gif', image_list, duration=0.5)
+def make_gif(image_list,output_folder,file_name,duration):
+    io.mimsave(output_folder+'/'+file_name+'.gif', image_list, duration=duration)
 
             
         
