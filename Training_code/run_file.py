@@ -11,14 +11,16 @@ import multiprocessing as mp
 from functools import partial
 import time
 
-streak = False
-
-folder = "psi"
+streak = True
+Threshold_probability = 0.92
+folder = "S14"
 set_1=ip.import_images(folder)
-type = "psi"
-dict,bgsub=ip.iterate_frames(set_1,40)
+type = "PSI"
+dict,bgsub=ip.iterate_frames(set_1,10)
 
 
+
+#
 # training_data=dd.train(dict, bgsub,False)
 # json = json.dumps(training_data)
 # f = open("training_data/"+type+"/"+folder+".json", "w")
@@ -35,6 +37,8 @@ cv2.destroyAllWindows()
 """
 
 training_data=dd.train(dict, bgsub)
+
+
 
 training_data={"sigma_delta_position": [], "mean_delta_position": [], "mean_delta_theta": [],
                "mean_delta_width":[],"mean_theta":[],"identifier": []}
@@ -66,9 +70,9 @@ for i in range(len(training_data["mean_delta_width"])):
 
     labels.append(training_data["identifier"][i])
 
-
-#split the number of frames into sections to be handled by seperate cores
-
+#
+# split the number of frames into sections to be handled by seperate cores
+#
 # frames_per_core = int(len(dict)/mp.cpu_count())
 # coredictionaries = np.array_split(np.array(dict), frames_per_core)
 #
@@ -84,14 +88,19 @@ for i in range(len(training_data["mean_delta_width"])):
 #     tx,ty,tframe = results[0]
 
 
-tx, ty, tframe = dd.track(dict,features,labels,streak)
+tx, ty, tb, tframe = dd.track(dict,features,labels,streak,Threshold_probability)
 
 
 
 
 for i in range(len(tx)):
+    frame_data=[[],[],[],[]]
     images=[]
     for j in range(len(tx[i])):
+        frame_data[0].append(tx[i][j])
+        frame_data[1].append(ty[i][j])
+        frame_data[2].append(tb[i][j])
+        frame_data[3].append(tframe[i][j])
         plt.clf()
         plt.cla()
         plt.close()
@@ -101,8 +110,8 @@ for i in range(len(tx)):
         img = m.imread("tracks/temp.png")
         images.append(img)
         os.remove("tracks/temp.png")
-
-    ip.make_gif(images,"tracks","surface"+str(i))
+    np.savetxt(fname="track"+str(i)+".csv",X=np.transpose(frame_data),header="X,Y,BRIGHTNESS,FRAME",delimiter=",",comments="")
+    ip.make_gif(images,"tracks","surface"+str(i),0.1)
 images=[]
 for i in range(len(set_1)):
     plt.clf()
@@ -117,7 +126,7 @@ for i in range(len(set_1)):
     img = m.imread("tracks/temp.png")
     images.append(img)
     os.remove("tracks/temp.png")
-ip.make_gif(images,"tracks","surface")
+ip.make_gif(images,"tracks","surface",0.1)
 
     ip.make_gif(images,"tracks","surface"+str(i))
 """
