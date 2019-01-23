@@ -112,7 +112,7 @@ def train(dust_dictionary,images,streak):
             y2=dust_dictionary[frame_2]["y0s"][index2]
 
     training = {"sigma_delta_position": [], "mean_delta_position": [], "mean_delta_theta": [], "mean_delta_width": [],
-                "mean_delta_brightness": [], "mean_theta":[], "identifier": []}  # define an empty dictionary of machine learning parameters
+                "mean_delta_brightness": [], "mean_theta":[], "delta_brightness":[], "identifier": []}  # define an empty dictionary of machine learning parameters
     stopping=False
     for frame in range(len(dust_dictionary) - 2):
         
@@ -159,15 +159,18 @@ def train(dust_dictionary,images,streak):
                         trackx = []
                         tracky = []
                         trackw = []
+                        trackb = []
 
                         # append unordered positions and widths of particle i frame 0 to track lists
                         trackx.append(dust_dictionary[frame_0]["x0s"][index0])
                         tracky.append(dust_dictionary[frame_0]["y0s"][index0])
                         trackw.append(dust_dictionary[frame_0]["widths"][index0])
+                        trackb.append(dust_dictionary[frame_2]["brightness"][index0])
                         if streak == True:
                             trackx.append(dust_dictionary[frame_0]["x1s"][index0])
                             tracky.append(dust_dictionary[frame_0]["y1s"][index0])
                             trackw.append(dust_dictionary[frame_0]["widths"][index0])
+                            trackb.append(dust_dictionary[frame_2]["brightness"][index0])
 
 
                         # append unordered positions and widths of particle j frame 1 to track lists
@@ -175,10 +178,12 @@ def train(dust_dictionary,images,streak):
                         trackx.append(dust_dictionary[frame_1]["x0s"][index1])
                         tracky.append(dust_dictionary[frame_1]["y0s"][index1])
                         trackw.append(dust_dictionary[frame_1]["widths"][index1])
+                        trackb.append(dust_dictionary[frame_2]["brightness"][index1])
                         if streak == True:
                             trackx.append(dust_dictionary[frame_1]["x1s"][index1])
                             tracky.append(dust_dictionary[frame_1]["y1s"][index1])
                             trackw.append(dust_dictionary[frame_1]["widths"][index1])
+                            trackb.append(dust_dictionary[frame_2]["brightness"][index1])
 
 
                         # append unordered positions and widths of particle j frame 1 to track lists
@@ -186,23 +191,26 @@ def train(dust_dictionary,images,streak):
                         trackx.append(dust_dictionary[frame_2]["x0s"][index2])
                         tracky.append(dust_dictionary[frame_2]["y0s"][index2])
                         trackw.append(dust_dictionary[frame_2]["widths"][index2])
+                        trackb.append(dust_dictionary[frame_2]["brightness"][index2])
                         if streak == True:
                             trackx.append(dust_dictionary[frame_2]["x1s"][index2])
                             tracky.append(dust_dictionary[frame_2]["y1s"][index2])
                             trackw.append(dust_dictionary[frame_2]["widths"][index2])
-
+                            trackb.append(dust_dictionary[frame_2]["brightness"][index2])
                         if streak == True:
                             trackx, tracky = sort_points(trackx, tracky)
                         track_dist, mean_delta_theta, mean_theta = find_dp_detheta_avtheta(trackx, tracky)
                         mean_delta_position = np.mean(track_dist)
                         sigma_delta_position = np.std(track_dist)
                         mean_delta_width = np.std(trackw)
+                        mean_delta_brightness = np.std(trackb)
 
                         training["sigma_delta_position"].append(sigma_delta_position)
                         training["mean_delta_position"].append(mean_delta_position)
                         training["mean_delta_theta"].append(mean_delta_theta)
                         training["mean_delta_width"].append(mean_delta_width)
                         training["mean_theta"].append(mean_theta)
+                        training["mean_delta_brightness"].append(mean_delta_brightness)
                     append_variables()
                     training["identifier"].append(1)
 
@@ -289,7 +297,8 @@ def track(dust_dictionary,features,labels,streak,Threshold_probability):
                     mean_delta_position = np.mean(track_dist)
                     sigma_delta_position = np.std(track_dist)
                     mean_delta_width = np.std(trackw)
-                    prob1 = clf.predict_proba([[sigma_delta_position,mean_delta_position,mean_delta_theta,mean_delta_width,mean_theta]])[0][1]
+                    mean_delta_brightness = np.std(trackb)
+                    prob1 = clf.predict_proba([[sigma_delta_position,mean_delta_position,mean_delta_theta,mean_delta_width,mean_theta,mean_delta_brightness]])[0][1]
 
                     if prob1 > prob0:
                         prob0 = prob1
