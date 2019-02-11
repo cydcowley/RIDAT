@@ -1,8 +1,5 @@
-/Training_code/JET/*
-/Training_code/PSI/*
-/Training_code/DIII-D/*
-/Training_code/tracks/*
-/Training_code/training_data/*
-/Training_code/__pychache__/*
+
+/__pychache__/
 .DS_Store
-.png*
+InputData/
+OutputData/

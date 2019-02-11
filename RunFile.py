@@ -11,21 +11,33 @@ import multiprocessing as mp
 from functools import partial
 import time
 
-streak = True
-Threshold_probability = 0.92
-folder = "S14"
+streak = False
+Threshold_brightness = 15
+Threshold_probability = 0.9
+
+learning_variables = {"sigma_delta_position": True,
+                      "mean_delta_position": True,
+                      "mean_delta_theta": True,
+                      "mean_delta_width": True,
+                      "mean_theta": True,
+
+
+
+                      }
+
+folder = "167342_11198"
 set_1=ip.import_images(folder)
-type = "PSI"
-dict,bgsub=ip.iterate_frames(set_1,10)
+type = "D111-D"
+dict,bgsub=ip.iterate_frames(set_1,Threshold_brightness)
 
 
 
-#
-# training_data=dd.train(dict, bgsub,False)
-# json = json.dumps(training_data)
-# f = open("training_data/"+type+"/"+folder+".json", "w")
-# f.write(json)
-# f.close()
+
+training_data=dd.train(dict, bgsub,False)
+json = json.dumps(training_data)
+f = open("training_data/"+type+"/"+folder+".json", "w")
+f.write(json)
+f.close()
 
 cv2.setMouseCallback('image',mouse_callback) 
 while True:
@@ -52,6 +64,7 @@ for image in a:
     training_data["mean_delta_theta"].extend(data["mean_delta_theta"])
     training_data["mean_delta_width"].extend(data["mean_delta_width"])
     training_data["mean_theta"].extend(data["mean_theta"])
+    # training_data["mean_delta_brightness"].extend(data["mean_delta_brightness"])
     training_data["identifier"].extend(data["identifier"])
 
 
@@ -67,6 +80,7 @@ for i in range(len(training_data["mean_delta_width"])):
     features[i].append(training_data["mean_delta_theta"][i])
     features[i].append(training_data["mean_delta_width"][i])
     features[i].append(training_data["mean_theta"][i])
+    # features[i].append(training_data["mean_delta_brightness"][i])
 
     labels.append(training_data["identifier"][i])
 
@@ -92,7 +106,6 @@ tx, ty, tb, tframe = dd.track(dict,features,labels,streak,Threshold_probability)
 
 
 
-
 for i in range(len(tx)):
     frame_data=[[],[],[],[]]
     images=[]
@@ -112,21 +125,21 @@ for i in range(len(tx)):
         os.remove("tracks/temp.png")
     np.savetxt(fname="track"+str(i)+".csv",X=np.transpose(frame_data),header="X,Y,BRIGHTNESS,FRAME",delimiter=",",comments="")
     ip.make_gif(images,"tracks","surface"+str(i),0.1)
-images=[]
-for i in range(len(set_1)):
-    plt.clf()
-    plt.cla()
-    plt.close()
-    implot1 = plt.imshow(set_1[i])
-    for j in range(len(tx)):
-        for k in range(len(tx[j])):
-            if tframe[j][k] == i:
-                plt.scatter(ty[j][k], tx[j][k])
-    plt.savefig("tracks/temp.png")
-    img = m.imread("tracks/temp.png")
-    images.append(img)
-    os.remove("tracks/temp.png")
-ip.make_gif(images,"tracks","surface",0.1)
+# images=[]
+# for i in range(len(set_1)):
+#     plt.clf()
+#     plt.cla()
+#     plt.close()
+#     implot1 = plt.imshow(set_1[i])
+#     for j in range(len(tx)):
+#         for k in range(len(tx[j])):
+#             if tframe[j][k] == i:
+#                 plt.scatter(ty[j][k], tx[j][k])
+#     plt.savefig("tracks/temp.png")
+#     img = m.imread("tracks/temp.png")
+#     images.append(img)
+#     os.remove("tracks/temp.png")
+# ip.make_gif(images,"tracks","surface",0.1)
 
     ip.make_gif(images,"tracks","surface"+str(i))
 """

@@ -5,7 +5,6 @@ import os
 import numpy as np
 import imageio as io
 import os
-from sklearn import tree
 from sklearn.naive_bayes import GaussianNB
 import cv2
 
@@ -159,7 +158,7 @@ def train(dust_dictionary,images,streak):
                         trackx = []
                         tracky = []
                         trackw = []
-                        trackb = []
+                        # trackb = []
 
                         # append unordered positions and widths of particle i frame 0 to track lists
                         trackx.append(dust_dictionary[frame_0]["x0s"][index0])
@@ -189,7 +188,7 @@ def train(dust_dictionary,images,streak):
                         trackx.append(dust_dictionary[frame_2]["x0s"][index2])
                         tracky.append(dust_dictionary[frame_2]["y0s"][index2])
                         trackw.append(dust_dictionary[frame_2]["widths"][index2])
-                        trackb.append(dust_dictionary[frame_2]["brightness"][index2])
+                        # trackb.append(dust_dictionary[frame_2]["brightness"][index2])
                         if streak == True:
                             trackx.append(dust_dictionary[frame_2]["x1s"][index2])
                             tracky.append(dust_dictionary[frame_2]["y1s"][index2])
@@ -202,7 +201,7 @@ def train(dust_dictionary,images,streak):
                         mean_delta_position = np.mean(track_dist)
                         sigma_delta_position = np.std(track_dist)
                         mean_delta_width = np.std(trackw)
-                        mean_delta_brightness = np.std(trackb)
+                        # mean_delta_brightness = np.std(trackb)
 
 
                         training["sigma_delta_position"].append(sigma_delta_position)
@@ -210,7 +209,7 @@ def train(dust_dictionary,images,streak):
                         training["mean_delta_theta"].append(mean_delta_theta)
                         training["mean_delta_width"].append(mean_delta_width)
                         training["mean_theta"].append(mean_theta)
-                        training["mean_delta_brightness"].append(mean_delta_brightness)
+                        # training["mean_delta_brightness"].append(mean_delta_brightness)
                     append_variables()
                     training["identifier"].append(1)
 

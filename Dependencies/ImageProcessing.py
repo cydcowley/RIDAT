@@ -107,7 +107,7 @@ def collect_dust(pixels):
     keep_dustgrains=[]
 
     for grain in (dust_grains):
-        if len(grain)>=2:
+        if len(grain)>=2 :
             keep_dustgrains.append(grain)
     return(keep_dustgrains)
 
@@ -167,8 +167,9 @@ def characterise_dust(pixels):
 def iterate_frames(images,thresh):
     dust_every_frame=len(images)*[0]
     bgsub=[]
-    bg = variable_bg(images,3)
+    bg = variable_bg(images,2)
     for i in range(len(images)):
+
         current_frame={"x0s":[],"y0s":[],"x1s":[],"y1s":[],"widths":[],
                      "lengths":[],"pixels":[]}
         [positions, bgsub_image] = find_dust(images=images,background=bg,threshold=thresh,activeframe=i)
@@ -176,7 +177,7 @@ def iterate_frames(images,thresh):
         if len(positions) == 0:
             dust_every_frame[i] = current_frame
             continue
-        current_frame["pixels"]=collect_dust(positions)
+        current_frame["pixels"] = collect_dust(positions)
         current_frame = characterise_dust(current_frame["pixels"])
         dust_every_frame[i] = current_frame
 
@@ -186,28 +187,3 @@ def iterate_frames(images,thresh):
 def make_gif(image_list,output_folder,file_name,duration):
     io.mimsave(output_folder+'/'+file_name+'.gif', image_list, duration=duration)
 
-            
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-
-   
