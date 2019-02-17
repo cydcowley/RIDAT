@@ -132,27 +132,16 @@ def characterise_dust(pixels):
                 r2= (pixels[i][j][0]-pixels[i][k][0])**2 + (pixels[i][j][1] - pixels[i][k][1])**2
                 if dust_lengths[i] <= np.sqrt(r2):
                     dust_lengths[i] = np.sqrt(r2)
-                    dust_x0s[i]= pixels[i][j][0]
-                    dust_x1s[i]= pixels[i][k][0]
-                    dust_y0s[i]= pixels[i][j][1]
-                    dust_y1s[i]= pixels[i][k][1]
+                    dust_x0s[i]= pixels[i][j][1]
+                    dust_x1s[i]= pixels[i][k][1]
+                    dust_y0s[i]= pixels[i][j][0]
+                    dust_y1s[i]= pixels[i][k][0]
 
         #determine average brightness via total brightness/number of pixels
         dust_brightness[i] = dust_brightness[i]/len(pixels[i])
 
     for i in range(len(dust_lengths)):
         dust_widths[i] = len(pixels[i])/(dust_lengths[i]+1)
-
-    # for i in range(len(pixels)):
-    #     av_x=0
-    #     av_y=0
-    #     for j in range(len(pixels[i])):
-    #         av_x+=pixels[i][j][0]
-    #         av_y+=pixels[i][j][1]
-    #     av_x = av_x/len(pixels[i])
-    #     av_y = av_y/len(pixels[i])
-    #     dust_xpositions[i] = av_x
-    #     dust_ypositions[i] = av_y
 
     dust_this_frame["pixels"]=pixels
     dust_this_frame["x0s"]=dust_x0s

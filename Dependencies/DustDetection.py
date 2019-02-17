@@ -61,7 +61,7 @@ def sort_points(unordered_pointsx, unordered_pointsy):
     return unordered_pointsx,unordered_pointsy
   
 
-def train(dust_dictionary,images,streak):
+def train(dust_dictionary,variable_switches,images,streak):
     """When dust in all frames has been sorted and characterised, this function connects dust particles across frames, forming a trajectory"""
 
     def create_tempimage(frame, numberedorder, x, y):
@@ -74,7 +74,7 @@ def train(dust_dictionary,images,streak):
         ax.set_axis_off()
         fig.add_axes(ax)
         ax.imshow(images[frame])
-        plt.scatter(y, x,s=1)
+        plt.scatter(x, y,s=1)
         fig.savefig("temp" + str(numberedorder), dpi=height)
         plt.clf()
         plt.cla()
@@ -91,6 +91,7 @@ def train(dust_dictionary,images,streak):
 
     def onMouse0(event, x, y, flags, param):
         global x0, y0, index0
+        print(x,y)
         if event == cv2.EVENT_LBUTTONDOWN:
             index0 = nearest_point_to_mouse(x,y,dust_dictionary[frame_0]["x0s"],dust_dictionary[frame_0]["y0s"])
             x0=dust_dictionary[frame_0]["x0s"][index0]
@@ -110,8 +111,10 @@ def train(dust_dictionary,images,streak):
             x2=dust_dictionary[frame_2]["x0s"][index2]
             y2=dust_dictionary[frame_2]["y0s"][index2]
 
-    training = {"sigma_delta_position": [], "mean_delta_position": [], "mean_delta_theta": [], "mean_delta_width": [],
-                "mean_delta_brightness": [], "mean_theta":[], "identifier": []}  # define an empty dictionary of machine learning parameters
+    training = {}  # define an empty dictionary of machine learning parameters
+    for variable in variable_switches:
+        training[variable]=[]
+
     stopping=False
     for frame in range(len(dust_dictionary) - 2):
         
@@ -158,7 +161,7 @@ def train(dust_dictionary,images,streak):
                         trackx = []
                         tracky = []
                         trackw = []
-                        # trackb = []
+                        trackb = []
 
                         # append unordered positions and widths of particle i frame 0 to track lists
                         trackx.append(dust_dictionary[frame_0]["x0s"][index0])
@@ -188,7 +191,7 @@ def train(dust_dictionary,images,streak):
                         trackx.append(dust_dictionary[frame_2]["x0s"][index2])
                         tracky.append(dust_dictionary[frame_2]["y0s"][index2])
                         trackw.append(dust_dictionary[frame_2]["widths"][index2])
-                        # trackb.append(dust_dictionary[frame_2]["brightness"][index2])
+                        trackb.append(dust_dictionary[frame_2]["brightness"][index2])
                         if streak == True:
                             trackx.append(dust_dictionary[frame_2]["x1s"][index2])
                             tracky.append(dust_dictionary[frame_2]["y1s"][index2])
@@ -201,15 +204,31 @@ def train(dust_dictionary,images,streak):
                         mean_delta_position = np.mean(track_dist)
                         sigma_delta_position = np.std(track_dist)
                         mean_delta_width = np.std(trackw)
-                        # mean_delta_brightness = np.std(trackb)
-
-
-                        training["sigma_delta_position"].append(sigma_delta_position)
-                        training["mean_delta_position"].append(mean_delta_position)
-                        training["mean_delta_theta"].append(mean_delta_theta)
-                        training["mean_delta_width"].append(mean_delta_width)
-                        training["mean_theta"].append(mean_theta)
-                        # training["mean_delta_brightness"].append(mean_delta_brightness)
+                        mean_delta_brightness = np.std(trackb)
+                        try:
+                            training["sigma_delta_position"].append(sigma_delta_position)
+                        except:
+                            pass
+                        try:
+                            training["mean_delta_position"].append(mean_delta_position)
+                        except:
+                            pass
+                        try:
+                            training["mean_delta_theta"].append(mean_delta_theta)
+                        except:
+                            pass
+                        try:
+                            training["mean_delta_width"].append(mean_delta_width)
+                        except:
+                            pass
+                        try:
+                            training["mean_theta"].append(mean_theta)
+                        except:
+                            pass
+                        try:
+                            training["mean_delta_brightness"].append(mean_delta_brightness)
+                        except:
+                            pass
                     append_variables()
                     training["identifier"].append(1)
 
@@ -230,7 +249,7 @@ def train(dust_dictionary,images,streak):
     return training
 
 
-def track(dust_dictionary,features,labels,streak,Threshold_probability,splitting_prob,split_switch):
+def track(dust_dictionary,variable_switches,features,labels,streak,threshold_probability,split_switch):
     """When dust in all frames has been sorted and characterised, this function connects dust particles across frames, forming a trajectory"""
     clf = GaussianNB()
     clf = clf.fit(features, labels)
@@ -247,8 +266,8 @@ def track(dust_dictionary,features,labels,streak,Threshold_probability,splitting
         frame_2 = frame + 2
         
         for i in range(len(dust_dictionary[frame_0]["x0s"])):  # cycle through every dust grain combination across three frames
-            prob0=Threshold_probability
-            splitting_prob = Threshold_probability
+            prob0=threshold_probability
+            splitting_prob = threshold_probability
             splitting = False
             probs=[]
             trackxfinal=[]
@@ -306,7 +325,20 @@ def track(dust_dictionary,features,labels,streak,Threshold_probability,splitting
                     sigma_delta_position = np.std(track_dist)
                     mean_delta_width = np.std(trackw)
                     mean_delta_brightness = np.std(trackb)
-                    prob1 = clf.predict_proba([[sigma_delta_position,mean_delta_position,mean_delta_theta,mean_delta_width]])[0][1]
+                    predicting_features = []
+                    if variable_switches["sigma_delta_position"]==True:
+                        predicting_features.append(sigma_delta_position)
+                    if variable_switches["mean_delta_position"]==True:
+                        predicting_features.append(mean_delta_position)
+                    if variable_switches["mean_delta_theta"] == True:
+                        predicting_features.append(mean_delta_theta)
+                    if variable_switches["mean_delta_width"]==True:
+                        predicting_features.append(mean_delta_width)
+                    if variable_switches["mean_delta_brightness"]==True:
+                        predicting_features.append(mean_delta_brightness)
+                    if variable_switches["mean_theta"]==True:
+                        predicting_features.append(mean_theta)
+                    prob1 = clf.predict_proba([predicting_features])[0][1]
                     probs.append(prob1)
                     if split_switch == True:
                         for l in range(len(probs)-1):
@@ -335,7 +367,7 @@ def track(dust_dictionary,features,labels,streak,Threshold_probability,splitting
                             else:
                                 trackframefinal = [[frame_0, frame_1, frame_2]]
         
-            if prob0 > Threshold_probability:
+            if prob0 > threshold_probability:
                 contained=False
                 for y in range(len(trackxtotal)):
                     for z in range(len(trackxtotal[y])):
@@ -391,5 +423,5 @@ def track(dust_dictionary,features,labels,streak,Threshold_probability,splitting
     trackwtotal.pop(0)
     trackbtotal.pop(0)
     track_lastframe.pop(0)
-    return (trackxtotal,trackytotal,trackbtotal,track_lastframe,probs)
+    return (trackxtotal,trackytotal,trackbtotal,track_lastframe)
 

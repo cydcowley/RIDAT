@@ -1,88 +1,76 @@
-from sklearn import tree
-import imageprocessing as ip
-import dust_detection as dd
+from Dependencies import DustDetection as dd
+from Dependencies import ImageProcessing as ip
 import matplotlib.pyplot as plt
 import csv
 import numpy as np
-import json
 import os
 import matplotlib.image as m
+import json
 import multiprocessing as mp
 from functools import partial
 import time
 
-streak = False
-Threshold_brightness = 15
-Threshold_probability = 0.9
 
-learning_variables = {"sigma_delta_position": True,
+streak = False
+threshold_brightness = 15
+threshold_probability = 0.98
+variable_switches = {"sigma_delta_position": True,
                       "mean_delta_position": True,
                       "mean_delta_theta": True,
                       "mean_delta_width": True,
-                      "mean_theta": True,
+                      "mean_delta_brightness": False,
+                      "mean_theta": True,}
 
-
-
-                      }
 
 folder = "167342_11198"
-set_1=ip.import_images(folder)
-type = "D111-D"
-dict,bgsub=ip.iterate_frames(set_1,Threshold_brightness)
+type = "DIII-D"
+
+set_1=ip.import_images("InputData/"+type+"/"+folder)
+dict,bgsub=ip.iterate_frames(set_1,threshold_brightness)
+
+def write_training(dict,variable_switches,bgsub,type,folder):
+    training_data=dd.train(dict, variable_switches, bgsub,False)
+    json = json.dumps(training_data)
+    f = open("InputData/TrainingData/"+type+"/"+folder+".json", "w")
+    f.write(json)
+    f.close()
 
 
 
+def get_training(input_data,variable_switches):
+    training_data={}
 
-training_data=dd.train(dict, bgsub,False)
-json = json.dumps(training_data)
-f = open("training_data/"+type+"/"+folder+".json", "w")
-f.write(json)
-f.close()
-
-cv2.setMouseCallback('image',mouse_callback) 
-while True:
-    cv2.imshow('image',bgsub[5])
-    k = cv2.waitKey(4)
-    if k == 27:
-        break
-cv2.destroyAllWindows()
-"""
-
-training_data=dd.train(dict, bgsub)
+    for variable in variable_switches:
+        if variable_switches[variable] == True:
+            training_data[str(variable)] = []
+    training_data["identifier"] = []
 
 
+    input_data=os.listdir("InputData/TrainingData/"+type)  # listdir returns a list of the entries in the folder
 
-training_data={"sigma_delta_position": [], "mean_delta_position": [], "mean_delta_theta": [],
-               "mean_delta_width":[],"mean_theta":[],"identifier": []}
+    for dataset in input_data:
+        f1 = open("InputData/TrainingData/"+type+"/"+str(dataset))
+        data=json.load(f1)
+        for variable in variable_switches:
+            if variable_switches[variable]==True:
+                training_data[str(variable)].extend((data[str(variable)]))
+        training_data["identifier"].extend(data["identifier"])
 
-a=os.listdir("training_data/"+type)  # listdir returns a list of the entries in the folder
-for image in a:
-    f1 = open("training_data/"+type+"/"+str(image))
-    data=json.load(f1)
-    training_data["sigma_delta_position"].extend(data["sigma_delta_position"])
-    training_data["mean_delta_position"].extend(data["mean_delta_position"])
-    training_data["mean_delta_theta"].extend(data["mean_delta_theta"])
-    training_data["mean_delta_width"].extend(data["mean_delta_width"])
-    training_data["mean_theta"].extend(data["mean_theta"])
-    # training_data["mean_delta_brightness"].extend(data["mean_delta_brightness"])
-    training_data["identifier"].extend(data["identifier"])
+    features=[]
+    labels = []
 
+    for i in range(len(training_data["mean_delta_width"])):
+        features.append([])
+    for i in range(len(training_data["mean_delta_width"])):
+        features[i].append(training_data["sigma_delta_position"][i])
+        features[i].append(training_data["mean_delta_position"][i])
+        features[i].append(training_data["mean_delta_theta"][i])
+        features[i].append(training_data["mean_delta_width"][i])
+        features[i].append(training_data["mean_theta"][i])
+        # features[i].append(training_data["mean_delta_brightness"][i])
 
-features=[]
-labels = []
-
-
-for i in range(len(training_data["mean_delta_width"])):
-    features.append([])
-for i in range(len(training_data["mean_delta_width"])):
-    features[i].append(training_data["sigma_delta_position"][i])
-    features[i].append(training_data["mean_delta_position"][i])
-    features[i].append(training_data["mean_delta_theta"][i])
-    features[i].append(training_data["mean_delta_width"][i])
-    features[i].append(training_data["mean_theta"][i])
-    # features[i].append(training_data["mean_delta_brightness"][i])
-
-    labels.append(training_data["identifier"][i])
+        labels.append(training_data["identifier"][i])
+    return(features,labels)
 
 #
 # split the number of frames into sections to be handled by seperate cores
@@ -102,44 +90,51 @@ for i in range(len(training_data["mean_delta_width"])):
 #     tx,ty,tframe = results[0]
 
 
-tx, ty, tb, tframe = dd.track(dict,features,labels,streak,Threshold_probability)
 
 
+def output_tracks(tx,ty,tb,tframe,image_set,total_gif):
+    for i in range(len(tx)):
+        frame_data=[[],[],[],[]]
+        images=[]
+        for j in range(len(tx[i])):
+            frame_data[0].append(tx[i][j])
+            frame_data[1].append(ty[i][j])
+            frame_data[2].append(tb[i][j])
+            frame_data[3].append(tframe[i][j])
+            plt.clf()
+            plt.cla()
+            plt.close()
+            implot1 = plt.imshow(image_set[tframe[i][j]])
+            plt.scatter(tx[i][j],ty[i][j],c='r')
+            plt.title(str(tframe[i][j]))
+            plt.savefig("OutputData/TrackImages/temp.png")
+            img = m.imread("OutputData/TrackImages/temp.png")
+            images.append(img)
+            os.remove("OutputData/TrackImages/temp.png")
+        np.savetxt(fname="OutputData/TrackFiles/track"+str(i)+".csv",X=np.transpose(frame_data),header="X,Y,BRIGHTNESS,FRAME",delimiter=",",comments="")
+        ip.make_gif(images,"OutputData/TrackImages/","track"+str(i),0.1)
 
-for i in range(len(tx)):
-    frame_data=[[],[],[],[]]
-    images=[]
-    for j in range(len(tx[i])):
-        frame_data[0].append(tx[i][j])
-        frame_data[1].append(ty[i][j])
-        frame_data[2].append(tb[i][j])
-        frame_data[3].append(tframe[i][j])
-        plt.clf()
-        plt.cla()
-        plt.close()
-        implot1 = plt.imshow(set_1[tframe[i][j]])
-        plt.scatter(ty[i][j],tx[i][j],c='r')
-        plt.savefig("tracks/temp.png")
-        img = m.imread("tracks/temp.png")
-        images.append(img)
-        os.remove("tracks/temp.png")
-    np.savetxt(fname="track"+str(i)+".csv",X=np.transpose(frame_data),header="X,Y,BRIGHTNESS,FRAME",delimiter=",",comments="")
-    ip.make_gif(images,"tracks","surface"+str(i),0.1)
-# images=[]
-# for i in range(len(set_1)):
-#     plt.clf()
-#     plt.cla()
-#     plt.close()
-#     implot1 = plt.imshow(set_1[i])
-#     for j in range(len(tx)):
-#         for k in range(len(tx[j])):
-#             if tframe[j][k] == i:
-#                 plt.scatter(ty[j][k], tx[j][k])
-#     plt.savefig("tracks/temp.png")
-#     img = m.imread("tracks/temp.png")
-#     images.append(img)
-#     os.remove("tracks/temp.png")
-# ip.make_gif(images,"tracks","surface",0.1)
+    if total_gif==True:
 
-    ip.make_gif(images,"tracks","surface"+str(i))
-"""
+        images=[]
+        for i in range(len(set_1)):
+            plt.clf()
+            plt.cla()
+            plt.close()
+            implot1 = plt.imshow(set_1[i])
+            for j in range(len(tx)):
+                for k in range(len(tx[j])):
+                    if tframe[j][k] == i:
+                        plt.scatter(tx[j][k], ty[j][k])
+            plt.savefig("OutputData/TrackImages/temp.png")
+            img = m.imread("OutputData/TrackImages/temp.png")
+            images.append(img)
+            os.remove("OutputData/TrackImages/temp.png")
+        ip.make_gif(images,"OutputData/TrackImages/","surface",0.1)
+
+# write_training(dict,variable_switches,bgsub,type,folder)
+
+input_data = os.listdir("InputData/TrainingData/"+type)
+features, labels = get_training(input_data=input_data,variable_switches=variable_switches)
+tx, ty, tb, tframe, = dd.track(dust_dictionary=dict,variable_switches=variable_switches,features=features,labels=labels,streak=streak,threshold_probability=threshold_probability,split_switch=False)
+output_tracks(tx,ty,tb,tframe,set_1,False)

@@ -3,3 +3,8 @@
 .DS_Store
 InputData/
 OutputData/
+.idea/
+temp0.png
+temp1.png
+temp2.png
+Dependencies/__pycache__/
