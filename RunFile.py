@@ -9,11 +9,14 @@ import json
 import multiprocessing as mp
 from functools import partial
 import time
+import shutil
+import glob
+
 
 
 streak = False
-threshold_brightness = 15
-threshold_probability = 0.98
+threshold_brightness =3.5
+threshold_probability = 0.92
 variable_switches = {"sigma_delta_position": True,
                       "mean_delta_position": True,
                       "mean_delta_theta": True,
@@ -22,17 +25,26 @@ variable_switches = {"sigma_delta_position": True,
                       "mean_theta": True,}
 
 
-folder = "167342_11198"
-type = "DIII-D"
+folder = "S59"
+type = "PSI"
 
 set_1=ip.import_images("InputData/"+type+"/"+folder)
+# a = os.listdir("OutputData/TrackFiles")  # listdir returns a list of the entries in the folder
+# implot1 = plt.imshow(set_1[0])
+# for tr in a:
+#     fname="OutputData/TrackFiles/" + str(tr)
+#     X=np.loadtxt(fname=fname,delimiter=',',skiprows=1)
+#     plt.plot(X[:,1],X[:,0],'g')
+# plt.savefig("OutputData/DIII-D.png")
+#
+# ip.make_gif(set_1,"OutputData","original",0.1)
 dict,bgsub=ip.iterate_frames(set_1,threshold_brightness)
 
 def write_training(dict,variable_switches,bgsub,type,folder):
     training_data=dd.train(dict, variable_switches, bgsub,False)
-    json = json.dumps(training_data)
+    J = json.dumps(training_data)
     f = open("InputData/TrainingData/"+type+"/"+folder+".json", "w")
-    f.write(json)
+    f.write(J)
     f.close()
 
 
@@ -93,6 +105,7 @@ def get_training(input_data,variable_switches):
 
 
 def output_tracks(tx,ty,tb,tframe,image_set,total_gif):
+
     for i in range(len(tx)):
         frame_data=[[],[],[],[]]
         images=[]
@@ -126,10 +139,10 @@ def output_tracks(tx,ty,tb,tframe,image_set,total_gif):
                 for k in range(len(tx[j])):
                     if tframe[j][k] == i:
                         plt.scatter(tx[j][k], ty[j][k])
-            plt.savefig("OutputData/TrackImages/temp.png")
-            img = m.imread("OutputData/TrackImages/temp.png")
+            plt.savefig("OutputData/TrackImages/temp"+str(i)+".png")
+            img = m.imread("OutputData/TrackImages/temp"+str(i)+".png")
             images.append(img)
-            os.remove("OutputData/TrackImages/temp.png")
+            # os.remove("OutputData/TrackImages/temp"+str(i)+".png")
         ip.make_gif(images,"OutputData/TrackImages/","surface",0.1)
 
 # write_training(dict,variable_switches,bgsub,type,folder)
@@ -137,4 +150,5 @@ def output_tracks(tx,ty,tb,tframe,image_set,total_gif):
 input_data = os.listdir("InputData/TrainingData/"+type)
 features, labels = get_training(input_data=input_data,variable_switches=variable_switches)
 tx, ty, tb, tframe, = dd.track(dust_dictionary=dict,variable_switches=variable_switches,features=features,labels=labels,streak=streak,threshold_probability=threshold_probability,split_switch=False)
-output_tracks(tx,ty,tb,tframe,set_1,False)
+
+output_tracks(tx,ty,tb,tframe,set_1,True)

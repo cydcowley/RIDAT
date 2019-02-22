@@ -91,7 +91,6 @@ def train(dust_dictionary,variable_switches,images,streak):
 
     def onMouse0(event, x, y, flags, param):
         global x0, y0, index0
-        print(x,y)
         if event == cv2.EVENT_LBUTTONDOWN:
             index0 = nearest_point_to_mouse(x,y,dust_dictionary[frame_0]["x0s"],dust_dictionary[frame_0]["y0s"])
             x0=dust_dictionary[frame_0]["x0s"][index0]
@@ -114,6 +113,7 @@ def train(dust_dictionary,variable_switches,images,streak):
     training = {}  # define an empty dictionary of machine learning parameters
     for variable in variable_switches:
         training[variable]=[]
+    training["identifier"] = []
 
     stopping=False
     for frame in range(len(dust_dictionary) - 2):
@@ -146,7 +146,7 @@ def train(dust_dictionary,variable_switches,images,streak):
                 cv2.setMouseCallback("img2", onMouse2)
 
                 key = cv2.waitKey(33)
-                #print(key)
+
                 if key ==27:  # esc key
                     stopping = True
                     nextframe=True
@@ -261,6 +261,7 @@ def track(dust_dictionary,variable_switches,features,labels,streak,threshold_pro
     track_lastframe=[[]] #defines the last frame where a dust grain in a given track was recorded
     
     for frame in range(len(dust_dictionary) - 2):
+        print(frame)
         frame_0 = frame
         frame_1 = frame + 1
         frame_2 = frame + 2
@@ -371,7 +372,7 @@ def track(dust_dictionary,variable_switches,features,labels,streak,threshold_pro
                 contained=False
                 for y in range(len(trackxtotal)):
                     for z in range(len(trackxtotal[y])):
-                        if (trackxtotal[y][z]==trackxfinal[0] and trackytotal[y][z] == trackyfinal[0]) and track_lastframe[y][z] == trackframefinal[0]:  
+                        if (trackxtotal[y][z]==trackxfinal[0][0] and trackytotal[y][z] == trackyfinal[0][0]) and track_lastframe[y][z] == trackframefinal[0][0]:
                             contained = [y,z]                                                           
                 if contained == False:  
                     if splitting == True:
@@ -424,4 +425,3 @@ def track(dust_dictionary,variable_switches,features,labels,streak,threshold_pro
     trackbtotal.pop(0)
     track_lastframe.pop(0)
     return (trackxtotal,trackytotal,trackbtotal,track_lastframe)
-

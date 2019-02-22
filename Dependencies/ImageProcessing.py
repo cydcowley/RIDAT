@@ -8,6 +8,7 @@ import imageio as io
 import os
 import cv2
 import numpy
+from natsort import natsorted
 
 
 def rgb2gray(rgb):
@@ -19,7 +20,8 @@ def rgb2gray(rgb):
 def import_images(folder):
     images = []
     a=os.listdir(folder)  # listdir returns a list of the entries in the folder
-    for image in a[1:]:
+    a = natsorted(a)
+    for image in a:
         img = misc.imread(os.path.join(folder,image),flatten=1)  # imread reads an image from a file into an array
         images.append(img)
     return(images)
@@ -156,9 +158,9 @@ def characterise_dust(pixels):
 def iterate_frames(images,thresh):
     dust_every_frame=len(images)*[0]
     bgsub=[]
-    bg = variable_bg(images,2)
+    bg = variable_bg(images,3)
     for i in range(len(images)):
-
+        print(i)
         current_frame={"x0s":[],"y0s":[],"x1s":[],"y1s":[],"widths":[],
                      "lengths":[],"pixels":[]}
         [positions, bgsub_image] = find_dust(images=images,background=bg,threshold=thresh,activeframe=i)
