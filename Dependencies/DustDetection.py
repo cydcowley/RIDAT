@@ -157,7 +157,7 @@ def train(dust_dictionary,variable_switches,images,streak):
                     nextframe = True
                     break
                 elif key == 115:  # S
-                    def append_variables():
+                    def append_variables(index0,index1,index2):
                         trackx = []
                         tracky = []
                         trackw = []
@@ -229,16 +229,14 @@ def train(dust_dictionary,variable_switches,images,streak):
                             training["mean_delta_brightness"].append(mean_delta_brightness)
                         except:
                             pass
-                    append_variables()
+                    append_variables(index0=index0,index1=index1,index2=index2)
                     training["identifier"].append(1)
 
                     for j in range(len(dust_dictionary[frame_1]["y1s"])):
                         for k in range(len(dust_dictionary[frame_2]["y1s"])):
                             if j == index1 and k==index2: # ensure that the track saved as yes is not also counted as a no
                                 continue
-                            index1 = j
-                            index2 = k
-                            append_variables()
+                            append_variables(index0=index0, index1=j, index2=k)
                             training["identifier"].append(0)
                     break
                 elif key == 110:  # N
