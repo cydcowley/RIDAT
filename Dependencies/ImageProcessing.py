@@ -83,7 +83,7 @@ def find_dust(images,background,threshold,activeframe):
         for j in range(len(bgsubtracted_image[0])):
             if bgsubtracted_image[i][j]>=threshold:
                 dust_positions.append([i, j, bgsubtracted_image[i][j]])
-                bgsubtracted_image[i][j]=1.0
+
             else:
                 bgsubtracted_image[i][j]=0.0
     else:
@@ -155,10 +155,13 @@ def characterise_dust(pixels):
     dust_this_frame["brightness"]= dust_brightness
     return(dust_this_frame)
 
-def iterate_frames(images,thresh):
+def iterate_frames(images,thresh,nframes):
     dust_every_frame=len(images)*[0]
     bgsub=[]
-    bg = variable_bg(images,3)
+    if nframes==False:
+        bg = find_bg(images)
+    else:
+        bg = variable_bg(images, nframes)
     for i in range(len(images)):
         print(i)
         current_frame={"x0s":[],"y0s":[],"x1s":[],"y1s":[],"widths":[],

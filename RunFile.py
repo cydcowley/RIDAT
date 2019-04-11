@@ -13,10 +13,9 @@ import shutil
 import glob
 
 
-
 streak = False
-threshold_brightness =3.5
-threshold_probability = 0.92
+threshold_brightness =6
+threshold_probability = 0.97
 variable_switches = {"sigma_delta_position": True,
                       "mean_delta_position": True,
                       "mean_delta_theta": True,
@@ -25,20 +24,21 @@ variable_switches = {"sigma_delta_position": True,
                       "mean_theta": True,}
 
 
-folder = "S59"
+folder = "S40"
 type = "PSI"
 
-set_1=ip.import_images("InputData/"+type+"/"+folder)
-# a = os.listdir("OutputData/TrackFiles")  # listdir returns a list of the entries in the folder
+set_1=ip.import_images("InputData/"+type+"/"+folder)[760:785]
+a = os.listdir("OutputData/TrackFiles")  # listdir returns a list of the entries in the folder
+print("hello")
 # implot1 = plt.imshow(set_1[0])
 # for tr in a:
 #     fname="OutputData/TrackFiles/" + str(tr)
 #     X=np.loadtxt(fname=fname,delimiter=',',skiprows=1)
-#     plt.plot(X[:,1],X[:,0],'g')
+#     plt.plot(X[:,0],X[:,1])
 # plt.savefig("OutputData/DIII-D.png")
 #
 # ip.make_gif(set_1,"OutputData","original",0.1)
-dict,bgsub=ip.iterate_frames(set_1,threshold_brightness)
+dict,bgsub=ip.iterate_frames(set_1,threshold_brightness,False)
 
 def write_training(dict,variable_switches,bgsub,type,folder):
     training_data=dd.train(dict, variable_switches, bgsub,False)
@@ -142,13 +142,33 @@ def output_tracks(tx,ty,tb,tframe,image_set,total_gif):
             plt.savefig("OutputData/TrackImages/temp"+str(i)+".png")
             img = m.imread("OutputData/TrackImages/temp"+str(i)+".png")
             images.append(img)
-            # os.remove("OutputData/TrackImages/temp"+str(i)+".png")
+            os.remove("OutputData/TrackImages/temp"+str(i)+".png")
         ip.make_gif(images,"OutputData/TrackImages/","surface",0.1)
 
 # write_training(dict,variable_switches,bgsub,type,folder)
 
 input_data = os.listdir("InputData/TrainingData/"+type)
 features, labels = get_training(input_data=input_data,variable_switches=variable_switches)
+
+print(len(features))
+# coredictionaries = np.array_split(np.array(dict), mp.cpu_count())
+# print(len(coredictionaries[0]))
+# for i in range(len(coredictionaries)-1):
+#     coredictionaries[i] = np.append(coredictionaries[i],coredictionaries[i+1][-1])
+#
+# if __name__=='__main__':
+#     pool = mp.Pool()
+#     tracking = partial(dd.track,variable_switches=variable_switches,features=features,labels=labels,streak=streak,threshold_probability=threshold_probability,split_switch=False)
+#     results = pool.map(tracking ,coredictionaries)
+#     if len(results) > 1:
+#         for i in range(1,len(results)):
+#             for j in range(0,len(results[i][3])):
+#                 print(results[i][3][j])
+#                 print(len(coredictionaries[i-1]))
+#                 results[i][3][j] = (np.array(results[i][3][j])+len(coredictionaries[i-1])).tolist()
+#     print(results)
+
+
 tx, ty, tb, tframe, = dd.track(dust_dictionary=dict,variable_switches=variable_switches,features=features,labels=labels,streak=streak,threshold_probability=threshold_probability,split_switch=False)
 
 output_tracks(tx,ty,tb,tframe,set_1,True)
