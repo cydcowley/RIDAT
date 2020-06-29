@@ -73,7 +73,7 @@ def train(dust_dictionary,variable_switches,images,streak):
         ax = plt.Axes(fig, [0., 0., 1., 1.])
         ax.set_axis_off()
         fig.add_axes(ax)
-        ax.imshow(images[frame])
+        ax.imshow(images[frame], cmap = "gray")
         plt.scatter(x, y,s=1)
         fig.savefig("temp" + str(numberedorder), dpi=height)
         plt.clf()
@@ -204,7 +204,7 @@ def train(dust_dictionary,variable_switches,images,streak):
                         mean_delta_position = np.mean(track_dist)
                         sigma_delta_position = np.std(track_dist)
                         mean_delta_width = np.std(trackw)
-                        mean_delta_brightness = np.std(trackb)
+                        mean_delta_brightness = np.std(trackb)/np.average(trackb)
                         try:
                             training["sigma_delta_position"].append(sigma_delta_position)
                         except:
@@ -251,6 +251,7 @@ def track(dust_dictionary,variable_switches,features,labels,streak,threshold_pro
     """When dust in all frames has been sorted and characterised, this function connects dust particles across frames, forming a trajectory"""
     clf = GaussianNB()
     clf = clf.fit(features, labels)
+    print(len(features[0]))
 
     trackxtotal = [[]]
     trackytotal = [[]]
@@ -323,7 +324,7 @@ def track(dust_dictionary,variable_switches,features,labels,streak,threshold_pro
                     mean_delta_position = np.mean(track_dist)
                     sigma_delta_position = np.std(track_dist)
                     mean_delta_width = np.std(trackw)
-                    mean_delta_brightness = np.std(trackb)
+                    mean_delta_brightness = np.std(trackb)/np.average(trackb)
                     predicting_features = []
                     if variable_switches["sigma_delta_position"]==True:
                         predicting_features.append(sigma_delta_position)
@@ -422,4 +423,4 @@ def track(dust_dictionary,variable_switches,features,labels,streak,threshold_pro
     trackwtotal.pop(0)
     trackbtotal.pop(0)
     track_lastframe.pop(0)
-    return (trackxtotal,trackytotal,trackbtotal,track_lastframe)
+    return (trackxtotal,trackytotal,trackbtotal,track_lastframe,trackwtotal)

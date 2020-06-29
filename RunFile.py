@@ -1,5 +1,5 @@
-from Dependencies import DustDetection as dd
-from Dependencies import ImageProcessing as ip
+import DustDetection as dd
+import ImageProcessing as ip
 import matplotlib.pyplot as plt
 import csv
 import numpy as np
@@ -13,32 +13,6 @@ import shutil
 import glob
 
 
-streak = False
-threshold_brightness =6
-threshold_probability = 0.97
-variable_switches = {"sigma_delta_position": True,
-                      "mean_delta_position": True,
-                      "mean_delta_theta": True,
-                      "mean_delta_width": True,
-                      "mean_delta_brightness": False,
-                      "mean_theta": True,}
-
-
-folder = "S40"
-type = "PSI"
-
-set_1=ip.import_images("InputData/"+type+"/"+folder)[760:785]
-a = os.listdir("OutputData/TrackFiles")  # listdir returns a list of the entries in the folder
-print("hello")
-# implot1 = plt.imshow(set_1[0])
-# for tr in a:
-#     fname="OutputData/TrackFiles/" + str(tr)
-#     X=np.loadtxt(fname=fname,delimiter=',',skiprows=1)
-#     plt.plot(X[:,0],X[:,1])
-# plt.savefig("OutputData/DIII-D.png")
-#
-# ip.make_gif(set_1,"OutputData","original",0.1)
-dict,bgsub=ip.iterate_frames(set_1,threshold_brightness,False)
 
 def write_training(dict,variable_switches,bgsub,type,folder):
     training_data=dd.train(dict, variable_switches, bgsub,False)
@@ -49,7 +23,7 @@ def write_training(dict,variable_switches,bgsub,type,folder):
 
 
 
-def get_training(input_data,variable_switches):
+def get_training(type,variable_switches):
     training_data={}
 
     for variable in variable_switches:
@@ -84,73 +58,91 @@ def get_training(input_data,variable_switches):
         labels.append(training_data["identifier"][i])
     return(features,labels)
 
-#
-# split the number of frames into sections to be handled by seperate cores
-#
-# frames_per_core = int(len(dict)/mp.cpu_count())
-# coredictionaries = np.array_split(np.array(dict), frames_per_core)
-#
-# corevariables=[]
-#
-# for i in range(len(coredictionaries)):
-#     corevariables.append((coredictionaries[i],features,labels, streak))
-#
-# if __name__=='__main__':
-#     pool = mp.Pool()
-#     tracking = partial(dd.track,features=features,labels=labels,streak=streak)
-#     results = pool.map(tracking,coredictionaries)
-#     tx,ty,tframe = results[0]
 
 
 
-
-def output_tracks(tx,ty,tb,tframe,image_set,total_gif):
+def output_tracks(tx,ty,tb,tframe,twidth,image_set,total_gif):
 
     for i in range(len(tx)):
-        frame_data=[[],[],[],[]]
+        frame_data=[[],[],[],[],[]]
         images=[]
         for j in range(len(tx[i])):
             frame_data[0].append(tx[i][j])
             frame_data[1].append(ty[i][j])
             frame_data[2].append(tb[i][j])
             frame_data[3].append(tframe[i][j])
+            frame_data[4].append(twidth[i][j])
             plt.clf()
             plt.cla()
             plt.close()
-            implot1 = plt.imshow(image_set[tframe[i][j]])
+            implot1 = plt.imshow(image_set[int(tframe[i][j])])
             plt.scatter(tx[i][j],ty[i][j],c='r')
             plt.title(str(tframe[i][j]))
             plt.savefig("OutputData/TrackImages/temp.png")
             img = m.imread("OutputData/TrackImages/temp.png")
             images.append(img)
             os.remove("OutputData/TrackImages/temp.png")
-        np.savetxt(fname="OutputData/TrackFiles/track"+str(i)+".csv",X=np.transpose(frame_data),header="X,Y,BRIGHTNESS,FRAME",delimiter=",",comments="")
+        np.savetxt(fname="OutputData/TrackFiles/track"+str(i)+".csv",X=np.transpose(frame_data),header="X,Y,BRIGHTNESS,FRAME,WIDTH",delimiter=",",comments="")
         ip.make_gif(images,"OutputData/TrackImages/","track"+str(i),0.1)
 
     if total_gif==True:
 
         images=[]
         for i in range(len(set_1)):
-            plt.clf()
-            plt.cla()
-            plt.close()
-            implot1 = plt.imshow(set_1[i])
-            for j in range(len(tx)):
-                for k in range(len(tx[j])):
-                    if tframe[j][k] == i:
-                        plt.scatter(tx[j][k], ty[j][k])
-            plt.savefig("OutputData/TrackImages/temp"+str(i)+".png")
-            img = m.imread("OutputData/TrackImages/temp"+str(i)+".png")
-            images.append(img)
-            os.remove("OutputData/TrackImages/temp"+str(i)+".png")
+            if i>680:
+                plt.clf()
+                plt.cla()
+                plt.close()
+                implot1 = plt.imshow(set_1[i])
+                for j in range(len(tx)):
+                    for k in range(len(tx[j])):
+                        if tframe[j][k] == i:
+                            plt.scatter(tx[j][k], ty[j][k])
+                plt.savefig("OutputData/TrackImages/temp"+str(i)+".png")
+                img = m.imread("OutputData/TrackImages/temp"+str(i)+".png")
+                images.append(img)
+                os.remove("OutputData/TrackImages/temp"+str(i)+".png")
         ip.make_gif(images,"OutputData/TrackImages/","surface",0.1)
 
-# write_training(dict,variable_switches,bgsub,type,folder)
 
-input_data = os.listdir("InputData/TrainingData/"+type)
-features, labels = get_training(input_data=input_data,variable_switches=variable_switches)
 
-print(len(features))
+streak = True
+threshold_brightness =4
+threshold_probability = 0.98
+nframes = 2
+variable_switches = {"sigma_delta_position": True,
+                      "mean_delta_position": True,
+                      "mean_delta_theta": True,
+                      "mean_delta_width": True,
+                      "mean_delta_brightness": False,
+                      "mean_theta": True,}
+
+
+folder = "training"
+type = "Example"
+
+
+set_1=ip.import_images ("InputData/"+type+"/"+folder)[0:765]
+# a = os.listdir("OutputData/TrackFiles")  # listdir returns a list of the entries in the folder
+print("hello")
+
+
+# for tr in a:
+#     fname="OutputData/TrackFiles/" + str(tr)
+#     X=np.loadtxt(fname=fname,delimiter=',',skiprows=1)
+#     plt.plot(X[:,0],X[:,1])
+# plt.savefig("OutputData/DIII-D.png")
+#
+# ip.make_gif(set_1,"OutputData","original",0.1)
+
+dict,bgsub=ip.iterate_frames(set_1,threshold_brightness,nframes)
+
+write_training(dict,variable_switches,bgsub,type,folder)
+
+#
+# features, labels = get_training(type=type,variable_switches=variable_switches)
+#
+# print("FEATURE LENGTH IS" +str(len(features)))
 # coredictionaries = np.array_split(np.array(dict), mp.cpu_count())
 # print(len(coredictionaries[0]))
 # for i in range(len(coredictionaries)-1):
@@ -168,7 +160,21 @@ print(len(features))
 #                 results[i][3][j] = (np.array(results[i][3][j])+len(coredictionaries[i-1])).tolist()
 #     print(results)
 
+#
+# tx, ty, tb, tframe, twidth = dd.track(dust_dictionary=dict,variable_switches=variable_switches,features=features,labels=labels,streak=streak,threshold_probability=threshold_probability,split_switch=False)
 
-tx, ty, tb, tframe, = dd.track(dust_dictionary=dict,variable_switches=variable_switches,features=features,labels=labels,streak=streak,threshold_probability=threshold_probability,split_switch=False)
+tx = []
+ty = []
+tb = []
+tframe = []
+twidth = []
+for i in os.listdir("S21"):
+    data = np.loadtxt("S21/"+str(i), delimiter=',', skiprows=1)
+    tx.append(data[:,0])
+    ty.append(data[:,1])
+    tb.append(data[:,2])
+    tframe.append(data[:,3])
+    twidth.append(data[:,0])
 
-output_tracks(tx,ty,tb,tframe,set_1,True)
+    print(data[:,0])
+output_tracks(tx,ty,tb,tframe,twidth,set_1,True)

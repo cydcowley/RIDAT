@@ -9,7 +9,7 @@ import os
 import cv2
 import numpy
 from natsort import natsorted
-
+import cv2 as cv
 
 def rgb2gray(rgb):
     r, g, b = rgb[:,:,0], rgb[:,:,1], rgb[:,:,2]
@@ -18,6 +18,7 @@ def rgb2gray(rgb):
     return gray
 
 def import_images(folder):
+    """Function that imports the images from a folder and converts them to np arrays"""
     images = []
     a=os.listdir(folder)  # listdir returns a list of the entries in the folder
     a = natsorted(a)
@@ -26,13 +27,15 @@ def import_images(folder):
         images.append(img)
     return(images)
 
-def import_images2(folder):
+def import_imagesText(folder):
+    """Function that imports the images as .txt files from a folder and converts them to np arrays"""
     images = []
     a =os.listdir(folder)
     for image in a: 
         img=numpy.loadtxt(os.path.join(folder,image))
         images.append(img)
     return images
+
 
 def find_bg(images):
     """Function that returns the average of all the images"""
@@ -71,13 +74,36 @@ def variable_bg(images,bgres):
     return(backgrounds)
 
 
+# def find_dust(images,background,threshold,activeframe):
+#     """Function that sets dust images to brightness 1, and stores the positions in dust_positions array"""
+#     dust_positions=[]
+#     if type(background) == list:
+#         bgsubtracted_image = images[activeframe]-background[activeframe]
+#     else:
+#         bgsubtracted_image = images[activeframe]-background
+
+#     for i in range(len(bgsubtracted_image)):
+#         for j in range(len(bgsubtracted_image[0])):
+#             if bgsubtracted_image[i][j]>=threshold:
+#                 dust_positions.append([i, j, bgsubtracted_image[i][j]])
+
+#             else:
+#                 bgsubtracted_image[i][j]=0.0
+#     else:
+#         return([dust_positions,bgsubtracted_image])
+
 def find_dust(images,background,threshold,activeframe):
     """Function that sets dust images to brightness 1, and stores the positions in dust_positions array"""
     dust_positions=[]
-    if type(background) == list:
-        bgsubtracted_image = images[activeframe]-background[activeframe]
-    else:
-        bgsubtracted_image = images[activeframe]-background
+    backSub = cv.createBackgroundSubtractorMOG2()
+    fgMask = backSub.apply(images[activeframe])
+    bgsubtracted_image = cv2.bitwise_and(images[activeframe],images[activeframe],mask = fgMask)
+    # plt.imshow(fgMask,cmap = "Greys")
+    # plt.show()
+    # if type(background) == list:
+    #     bgsubtracted_image = images[activeframe]-background[activeframe]
+    # else:
+    #     bgsubtracted_image = images[activeframe]-background
 
     for i in range(len(bgsubtracted_image)):
         for j in range(len(bgsubtracted_image[0])):
@@ -89,29 +115,32 @@ def find_dust(images,background,threshold,activeframe):
     else:
         return([dust_positions,bgsubtracted_image])
 
-def collect_dust(pixels):
+def collect_dust(pixels,imagesize):
     """Function that lumps dust pixels into dust grains, by checking if the bright pixels neighbor other bright pixels"""
     
     dust_grains = []
-    dust_grains.append([pixels[0]])
-    pixels.pop(0)
-    while(len(pixels)>=1):
-        contained = False
-        for i in range(len(dust_grains)):
-            for j in range(len(dust_grains[i])):
-                if(np.absolute(pixels[0][0]-dust_grains[i][j][0])<=1 and np.absolute(pixels[0][1]-dust_grains[i][j][1])<=1):
-                    contained = i
-        if type(contained)==int:
-            dust_grains[contained].append(pixels[0])
-        else:
-            dust_grains.append([pixels[0]])
+    if len(pixels)>imagesize/4:
+        return dust_grains
+    else:
+        dust_grains.append([pixels[0]])
         pixels.pop(0)
-    keep_dustgrains=[]
+        while(len(pixels)>=1):
+            contained = False
+            for i in range(len(dust_grains)):
+                for j in range(len(dust_grains[i])):
+                    if(np.absolute(pixels[0][0]-dust_grains[i][j][0])<=1 and np.absolute(pixels[0][1]-dust_grains[i][j][1])<=1):
+                        contained = i
+            if type(contained)==int:
+                dust_grains[contained].append(pixels[0])
+            else:
+                dust_grains.append([pixels[0]])
+            pixels.pop(0)
+        keep_dustgrains=[]
 
-    for grain in (dust_grains):
-        if len(grain)>=2 :
-            keep_dustgrains.append(grain)
-    return(keep_dustgrains)
+        for grain in (dust_grains):
+            if len(grain)>=2 :
+                keep_dustgrains.append(grain)
+        return(keep_dustgrains)
 
 def characterise_dust(pixels):
     """Funciton that takes pixel locations of each dust grain and outpus entire dust grain position and dimensions"""
@@ -163,7 +192,6 @@ def iterate_frames(images,thresh,nframes):
     else:
         bg = variable_bg(images, nframes)
     for i in range(len(images)):
-        print(i)
         current_frame={"x0s":[],"y0s":[],"x1s":[],"y1s":[],"widths":[],
                      "lengths":[],"pixels":[]}
         [positions, bgsub_image] = find_dust(images=images,background=bg,threshold=thresh,activeframe=i)
@@ -171,10 +199,9 @@ def iterate_frames(images,thresh,nframes):
         if len(positions) == 0:
             dust_every_frame[i] = current_frame
             continue
-        current_frame["pixels"] = collect_dust(positions)
+        current_frame["pixels"] = collect_dust(positions,len(images[0])*len(images[0][0]))
         current_frame = characterise_dust(current_frame["pixels"])
         dust_every_frame[i] = current_frame
-
     return [dust_every_frame, bgsub]
 
 
