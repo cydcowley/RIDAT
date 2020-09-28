@@ -1,8 +1,11 @@
 
 /__pychache__/
 .DS_Store
-InputData/
-OutputData/
+InputData/KL11/
+InputData/TrainingData/DIII-D
+InputData/TrainingData/KL11
+InputData/TrainingData/PSI
+InputData/TrainingData/Example/training.json
 .idea/
 temp0.png
 temp1.png

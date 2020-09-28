@@ -7,6 +7,7 @@ import imageio as io
 import os
 from sklearn.naive_bayes import GaussianNB
 import cv2
+import json
 
 
 def find_dp_dtheta_avtheta(position_listx,position_listy):  # uses information on distance travelled within frames as well as between frames
@@ -60,6 +61,7 @@ def sort_points(unordered_pointsx, unordered_pointsy):
             unordered_pointsy.insert(i+2, y0)
     return unordered_pointsx,unordered_pointsy
   
+
 
 def train(dust_dictionary,variable_switches,images,streak):
     """When dust in all frames has been sorted and characterised, this function connects dust particles across frames, forming a trajectory"""
@@ -246,6 +248,12 @@ def train(dust_dictionary,variable_switches,images,streak):
             break
     return training
 
+def write_training(dict,variable_switches,bgsub,type,folder):
+    training_data=train(dict, variable_switches, bgsub,False)
+    J = json.dumps(training_data)
+    f = open("InputData/TrainingData/"+type+"/"+folder+".json", "w")
+    f.write(J)
+    f.close()
 
 def track(dust_dictionary,variable_switches,features,labels,streak,threshold_probability,split_switch):
     """When dust in all frames has been sorted and characterised, this function connects dust particles across frames, forming a trajectory"""

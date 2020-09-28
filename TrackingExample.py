@@ -13,7 +13,7 @@ import shutil
 import glob
 
 
-streak = True
+streak = False
 threshold_brightness =50
 threshold_probability = 0.98
 nframes = 2
@@ -153,7 +153,7 @@ def get_training(type,variable_switches):
 #                 os.remove("OutputData/TrackImages/temp"+str(i)+".png")
 #         ip.make_gif(images,"OutputData/TrackImages/","surface",0.1)
 
-write_training(dict,variable_switches,bgsub,type,folder)
+dd.write_training(dict,variable_switches,bgsub,type,folder)
 
 #
 # features, labels = get_training(type=type,variable_switches=variable_switches)
@@ -193,4 +193,4 @@ write_training(dict,variable_switches,bgsub,type,folder)
 #     twidth.append(data[:,0])
 
     # print(data[:,0])
-output_tracks(tx,ty,tb,tframe,twidth,set_1,True)
+# output_tracks(tx,ty,tb,tframe,twidth,set_1,True)

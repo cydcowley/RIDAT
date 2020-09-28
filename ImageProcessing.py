@@ -23,7 +23,7 @@ def import_images(folder):
     a=os.listdir(folder)  # listdir returns a list of the entries in the folder
     a = natsorted(a)
     for image in a:
-        img = misc.imread(os.path.join(folder,image),flatten=1)  # imread reads an image from a file into an array
+        img = io.imread(os.path.join(folder,image),as_gray=1)  # imread reads an image from a file into an array
         images.append(img)
     return(images)
 
